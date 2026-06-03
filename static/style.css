@@ -228,6 +228,35 @@ body::after {
   box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
 }
 
+.tab[data-agent="leitor"].active {
+  background: #1a1a3a;
+  color: #c7d2fe;
+  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.35);
+}
+
+/* ── Attach button (PDF upload) ───────────────────── */
+#attachBtn {
+  display: none;
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+#attachBtn:hover { color: rgba(255, 255, 255, 0.9); }
+
+.input-form.has-attach {
+  padding-left: 44px;
+}
+
 .tab[data-agent="treino"].active {
   background: #3d2000;
   color: #fcd34d;

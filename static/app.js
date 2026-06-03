@@ -7,6 +7,8 @@ const agentLabel = document.getElementById("current-agent-label");
 
 let currentAgent = "conhecimento";
 const sessionId = crypto.randomUUID();
+const attachBtn = document.getElementById("attachBtn");
+const pdfInput  = document.getElementById("pdfInput");
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -52,7 +54,41 @@ document.querySelectorAll(".tab").forEach((tab) => {
     tab.classList.add("active");
     currentAgent = tab.dataset.agent;
     agentLabel.textContent = tab.textContent.trim();
+    const isLeitor = currentAgent === "leitor";
+    attachBtn.style.display = isLeitor ? "flex" : "none";
+    form.classList.toggle("has-attach", isLeitor);
   });
+});
+
+// ── PDF upload ────────────────────────────────────────────────
+attachBtn.addEventListener("click", () => pdfInput.click());
+
+pdfInput.addEventListener("change", async () => {
+  const file = pdfInput.files[0];
+  if (!file) return;
+  pdfInput.value = "";
+
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("session_id", sessionId);
+
+  appendSystemMessage(`📎 Enviando ${file.name}...`);
+  try {
+    const res  = await fetch("/upload/pdf", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.success) {
+      appendSystemMessage(
+        `📄 ${data.filename} carregado (${data.pages} páginas · ${data.chars.toLocaleString("pt-BR")} caracteres)`
+      );
+      if (data.truncated) {
+        appendSystemMessage("⚠️ Documento grande — analisando primeiras 20 + últimas 5 páginas");
+      }
+    } else {
+      appendSystemMessage(`❌ Erro: ${data.error}`);
+    }
+  } catch {
+    appendSystemMessage("❌ Erro ao enviar arquivo");
+  }
 });
 
 // ── Helpers ───────────────────────────────────────────────────
