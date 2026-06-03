@@ -155,22 +155,26 @@ def get_completion(messages: list[dict], complexity: Complexity) -> str:
     )
 
 
-def stream_completion(messages: list[dict], complexity: Complexity) -> Generator[str, None, None]:
-    """Yields string tokens. Tries each provider in chain; falls back if setup fails.
+def stream_completion(messages: list[dict], complexity: Complexity) -> Generator:
+    """Yields string tokens followed by a final dict {"provider": name}.
+    Tries each provider in chain; falls back if setup fails.
     Raises RuntimeError only if all providers fail before yielding anything."""
     errors: list[str] = []
     for provider_fn in _STREAM_CHAIN[complexity]:
+        provider_name = provider_fn.__name__.replace("_stream_", "")
         try:
             gen = provider_fn(messages)
             first = next(gen)   # fail-fast: raises if provider is down before first token
         except StopIteration:
-            return              # provider succeeded with empty response
+            yield {"provider": provider_name}
+            return
         except Exception as exc:
             errors.append(f"{provider_fn.__name__}: {exc}")
             continue
         # Provider is live — hand off the stream (mid-stream errors propagate to caller)
         yield first
         yield from gen
+        yield {"provider": provider_name}
         return
     raise RuntimeError(
         f"All streaming providers failed for complexity={complexity.value}.\n" +
