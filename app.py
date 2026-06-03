@@ -15,12 +15,16 @@ from agents.sentinela import SentinelaAgent
 from agents.treino import TreinoAgent
 from agents.juridico import JuridicoAgent
 from agents.investigador import InvestigadorAgent
+from agents.leitor_pdf import LeitorPDFAgent
 from db.database import Database
 
 load_dotenv()
 
 app = Flask(__name__, static_folder="static")
 db = Database()
+
+_PDF_SESSIONS: dict = {}
+_PDF_MAX_SESSIONS = 50
 
 AGENTS = {
     "saude": SaudeAgent(db=db),
@@ -31,12 +35,69 @@ AGENTS = {
     "treino": TreinoAgent(db=db),
     "juridico": JuridicoAgent(db=db),
     "investigador": InvestigadorAgent(db=db),
+    "leitor": LeitorPDFAgent(db=db),
 }
 
 
 @app.route("/")
 def index():
     return send_from_directory("static", "index.html")
+
+
+@app.route("/upload/pdf", methods=["POST"])
+def upload_pdf():
+    if "file" not in request.files:
+        return jsonify({"success": False, "error": "Nenhum arquivo enviado"}), 400
+
+    f = request.files["file"]
+    session_id = request.form.get("session_id", "")
+
+    if not f.filename.lower().endswith(".pdf"):
+        return jsonify({"success": False, "error": "Apenas arquivos PDF são aceitos"}), 400
+
+    file_bytes = f.read()
+    if len(file_bytes) > 10 * 1024 * 1024:
+        return jsonify({"success": False, "error": "Arquivo muito grande (máx. 10MB)"}), 400
+
+    try:
+        import fitz
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        n_pages = len(doc)
+
+        if n_pages > 100:
+            return jsonify({
+                "success": False,
+                "error": f"Documento muito longo ({n_pages} páginas). Use um trecho menor (máx. 100 páginas).",
+            }), 400
+
+        truncated = False
+        if n_pages > 20:
+            pages_to_extract = list(range(20)) + list(range(max(20, n_pages - 5), n_pages))
+            truncated = True
+        else:
+            pages_to_extract = list(range(n_pages))
+
+        text = "\n\n".join(doc[i].get_text() for i in pages_to_extract)
+
+        if session_id:
+            if len(_PDF_SESSIONS) >= _PDF_MAX_SESSIONS:
+                del _PDF_SESSIONS[next(iter(_PDF_SESSIONS))]
+            _PDF_SESSIONS[session_id] = {
+                "text": text,
+                "filename": f.filename,
+                "pages": n_pages,
+            }
+
+        return jsonify({
+            "success": True,
+            "filename": f.filename,
+            "pages": n_pages,
+            "chars": len(text),
+            "text": text,
+            "truncated": truncated,
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.route("/chat", methods=["POST"])
@@ -81,6 +142,8 @@ def chat_stream():
         return Response(stream_with_context(_err_agent()), mimetype="text/event-stream")
 
     def generate():
+        if agent_name == "leitor" and session_id in _PDF_SESSIONS:
+            agent.set_pdf_context(**_PDF_SESSIONS[session_id])
         full_response: list[str] = []
         provider = "unknown"
         try:
