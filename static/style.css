@@ -152,13 +152,14 @@ body::before {
 /* ── Agent tabs ───────────────────────────────────── */
 .agent-tabs {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
   align-items: center;
   overflow-x: auto;
   flex-wrap: nowrap;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  scroll-snap-type: x mandatory;
 }
 .agent-tabs::-webkit-scrollbar { display: none; }
 
@@ -166,21 +167,22 @@ body::before {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 10px;
+  padding: 5px 9px;
   border-radius: 20px;
   border: none;
   background: transparent;
   color: var(--text-sub);
   font-family: 'DM Sans', sans-serif;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  scroll-snap-align: start;
   transition: background 0.15s, color 0.15s;
 }
 
-.tab .tab-icon { font-size: 1rem; }
+.tab .tab-icon { display: none; }
 
 .tab:hover {
   background: rgba(255,255,255,0.06);
