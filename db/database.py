@@ -19,20 +19,26 @@ class Database:
         with self._connect() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
-                    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                    agent     TEXT    NOT NULL,
-                    role      TEXT    NOT NULL CHECK(role IN ('user', 'assistant')),
-                    content   TEXT    NOT NULL,
-                    timestamp TEXT    NOT NULL
+                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                    agent      TEXT    NOT NULL,
+                    role       TEXT    NOT NULL CHECK(role IN ('user', 'assistant')),
+                    content    TEXT    NOT NULL,
+                    timestamp  TEXT    NOT NULL,
+                    session_id TEXT
                 )
             """)
+            # Aditiva: adiciona session_id em bancos existentes sem a coluna
+            try:
+                conn.execute("ALTER TABLE messages ADD COLUMN session_id TEXT")
+            except Exception:
+                pass
             conn.commit()
 
-    def save_message(self, agent: str, role: str, content: str):
+    def save_message(self, agent: str, role: str, content: str, session_id: str):
         with self._connect() as conn:
             conn.execute(
-                "INSERT INTO messages (agent, role, content, timestamp) VALUES (?, ?, ?, ?)",
-                (agent, role, content, datetime.utcnow().isoformat()),
+                "INSERT INTO messages (agent, role, content, timestamp, session_id) VALUES (?, ?, ?, ?, ?)",
+                (agent, role, content, datetime.utcnow().isoformat(), session_id),
             )
             conn.commit()
 
@@ -45,11 +51,11 @@ class Database:
             ).fetchall()
         return [dict(row) for row in reversed(rows)]
 
-    def get_history_as_messages(self, agent: str, limit: int = 10) -> list[dict]:
+    def get_history_as_messages(self, agent: str, session_id: str, limit: int = 10) -> list[dict]:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT role, content FROM messages "
-                "WHERE agent = ? ORDER BY id DESC LIMIT ?",
-                (agent, limit),
+                "WHERE agent = ? AND session_id = ? ORDER BY id DESC LIMIT ?",
+                (agent, session_id, limit),
             ).fetchall()
         return [{"role": row["role"], "content": row["content"]} for row in reversed(rows)]
