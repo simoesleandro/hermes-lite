@@ -6,6 +6,7 @@ const sendBtn   = document.getElementById("send-btn");
 const agentLabel = document.getElementById("current-agent-label");
 
 let currentAgent = "conhecimento";
+const sessionId = crypto.randomUUID();
 
 // ── Agent tab switching ───────────────────────────────────────
 document.querySelectorAll(".tab").forEach((tab) => {
@@ -104,7 +105,7 @@ form.addEventListener("submit", async (e) => {
     const res = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, agent: currentAgent }),
+      body: JSON.stringify({ message, agent: currentAgent, session_id: sessionId }),
     });
 
     const data = await res.json();
