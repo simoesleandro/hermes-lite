@@ -38,3 +38,21 @@ class SysHealthClient:
             return self._get(f"/api/treinos?dias={dias}")
         except Exception:
             return []
+
+    def get_analise_treinos(self, dias: int = 30) -> dict:
+        try:
+            return self._get(f"/api/treinos/analise?dias={dias}")
+        except Exception:
+            return {"offline": True}
+
+    def get_corpo(self, dias: int = 90) -> dict:
+        try:
+            return self._get(f"/api/corpo?dias={dias}")
+        except Exception:
+            return {"offline": True}
+
+    def get_sono(self, dias: int = 14) -> dict:
+        try:
+            return self._get(f"/api/sono?dias={dias}")
+        except Exception:
+            return {"offline": True}
