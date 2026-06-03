@@ -74,6 +74,25 @@ body {
   color: var(--accent-lt);
 }
 
+/* ── Status dots ──────────────────────────────────── */
+.status-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.status-dot {
+  font-size: 0.55rem;
+  line-height: 1;
+  cursor: default;
+  transition: color 0.4s;
+}
+
+.status-dot.checking { color: var(--muted); }
+.status-dot.online   { color: #22c55e; }
+.status-dot.offline  { color: #ef4444; }
+
 /* ── Agent tabs ───────────────────────────────────── */
 .agent-tabs {
   display: flex;

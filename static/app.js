@@ -8,6 +8,41 @@ const agentLabel = document.getElementById("current-agent-label");
 let currentAgent = "conhecimento";
 const sessionId = crypto.randomUUID();
 
+// ── Provider status dots ──────────────────────────────────────
+const _statusDots = {
+  groq:   document.getElementById("dot-groq"),
+  gemini: document.getElementById("dot-gemini"),
+  ollama: document.getElementById("dot-ollama"),
+};
+
+async function fetchStatus() {
+  Object.values(_statusDots).forEach((d) => {
+    d.className = "status-dot checking";
+    d.title = `${d.dataset.provider}: checando...`;
+  });
+  try {
+    const res  = await fetch("/api/status");
+    const data = await res.json();
+    const providers = data.providers || {};
+    for (const [name, dot] of Object.entries(_statusDots)) {
+      const info = providers[name];
+      if (!info) continue;
+      const online  = info.status === "online";
+      dot.className = `status-dot ${online ? "online" : "offline"}`;
+      const lat     = info.latency_ms != null ? ` · ${info.latency_ms}ms` : "";
+      dot.title     = `${name}: ${info.status}${lat}`;
+    }
+  } catch {
+    Object.values(_statusDots).forEach((d) => {
+      d.className = "status-dot offline";
+      d.title     = `${d.dataset.provider}: erro`;
+    });
+  }
+}
+
+fetchStatus();
+setInterval(fetchStatus, 30000);
+
 // ── Agent tab switching ───────────────────────────────────────
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
