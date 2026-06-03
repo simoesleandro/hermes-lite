@@ -70,10 +70,14 @@ def chat_stream():
 
     def generate():
         full_response: list[str] = []
+        provider = "unknown"
         try:
-            for token in agent.stream(message, session_id):
-                full_response.append(token)
-                yield _sse({"token": token})
+            for item in agent.stream(message, session_id):
+                if isinstance(item, dict):
+                    provider = item.get("provider", "unknown")
+                else:
+                    full_response.append(item)
+                    yield _sse({"token": item})
         except Exception as exc:
             yield _sse({"error": str(exc)})
             return
@@ -81,7 +85,7 @@ def chat_stream():
         complete = "".join(full_response)
         db.save_message(agent=agent_name, role="user", content=message, session_id=session_id)
         db.save_message(agent=agent_name, role="assistant", content=complete, session_id=session_id)
-        yield _sse({"done": True, "full_response": complete})
+        yield _sse({"done": True, "full_response": complete, "provider": provider})
 
     return Response(
         stream_with_context(generate()),
