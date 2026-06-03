@@ -8,6 +8,8 @@ const agentLabel = document.getElementById("current-agent-label");
 let currentAgent = "conhecimento";
 const sessionId = crypto.randomUUID();
 
+marked.setOptions({ breaks: true, gfm: true });
+
 // ── Provider status dots ──────────────────────────────────────
 const _statusDots = {
   groq:   document.getElementById("dot-groq"),
@@ -166,6 +168,9 @@ form.addEventListener("submit", async (e) => {
 
   function finalize(provider = null) {
     bubble.classList.remove("streaming");
+    if (body.textContent) {
+      body.innerHTML = marked.parse(body.textContent);
+    }
     const timeSpan = document.createElement("span");
     timeSpan.textContent = `${agentSnap} · ${nowTime()}`;
     meta.appendChild(timeSpan);
