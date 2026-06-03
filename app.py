@@ -16,6 +16,7 @@ from agents.treino import TreinoAgent
 from agents.juridico import JuridicoAgent
 from agents.investigador import InvestigadorAgent
 from agents.leitor_pdf import LeitorPDFAgent
+from agents.analista import AnalistaAgent
 from db.database import Database
 
 load_dotenv()
@@ -36,6 +37,7 @@ AGENTS = {
     "juridico": JuridicoAgent(db=db),
     "investigador": InvestigadorAgent(db=db),
     "leitor": LeitorPDFAgent(db=db),
+    "analista": AnalistaAgent(db=db),
 }
 
 
@@ -151,6 +153,8 @@ def chat_stream():
                 if isinstance(item, dict):
                     if "progress" in item:
                         yield _sse({"progress": item["progress"]})
+                    elif "chart" in item:
+                        yield _sse({"chart": item["chart"]})
                     else:
                         provider = item.get("provider", "unknown")
                 else:
