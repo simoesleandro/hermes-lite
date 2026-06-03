@@ -1,0 +1,10 @@
+2026-06-03T17:23:37.161 INFO  console - Installing service 'Hermes Vigia (hermes-vigia)'...
+2026-06-03T17:23:37.230 INFO  console - Service 'Hermes Vigia (hermes-vigia)' was installed successfully.
+2026-06-03T17:23:41.418 INFO  console - Service 'Hermes Vigia (hermes-vigia)' was refreshed successfully.
+2026-06-03T17:23:41.448 INFO  console - Starting service 'Hermes Vigia (hermes-vigia)'...
+2026-06-03T17:23:41.814 DEBUG console - Starting WinSW in service mode.
+2026-06-03T17:23:41.875 INFO  console - Service 'Hermes Vigia (hermes-vigia)' was refreshed successfully.
+2026-06-03T17:23:41.891 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-03T17:23:41.933 INFO  service - Started process python (16624).
+2026-06-03T17:23:41.967 INFO  service - Service started successfully.
+2026-06-03T17:23:42.134 INFO  console - Service 'Hermes Vigia (hermes-vigia)' started successfully.

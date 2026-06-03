@@ -1,0 +1,28 @@
+2026-06-03T15:51:56.404 INFO  console - Installing service 'Hermes Cronos Scheduler (HermesCronos)'...
+2026-06-03T15:51:56.472 INFO  console - Service 'Hermes Cronos Scheduler (HermesCronos)' was installed successfully.
+2026-06-03T15:52:00.929 INFO  console - Starting service 'Hermes Cronos Scheduler (HermesCronos)'...
+2026-06-03T15:52:01.337 DEBUG console - Starting WinSW in service mode.
+2026-06-03T15:52:01.385 INFO  service - Starting python
+2026-06-03T15:52:01.410 ERROR service - Failed to start service.
+System.ComponentModel.Win32Exception (2): An error occurred trying to start process 'python' with working directory 'C:\Users\Leand\onedrive\desktop\hermes-lite'. O sistema não pode encontrar o arquivo especificado.
+   at System.Diagnostics.Process.StartWithCreateProcess(ProcessStartInfo)
+   at System.Diagnostics.Process.StartCore(ProcessStartInfo)
+   at System.Diagnostics.Process.Start()
+   at System.Diagnostics.Process.Start(ProcessStartInfo)
+   at WinSW.WrapperService.StartProcess(String, String, LogHandler , Action`1 )
+   at WinSW.WrapperService.DoStart()
+   at WinSW.WrapperService.OnStart(String[])
+2026-06-03T15:52:02.390 FATAL console - Failed to start the service.
+2026-06-03T15:53:54.036 INFO  console - Service 'Hermes Cronos Scheduler (HermesCronos)' was refreshed successfully.
+2026-06-03T15:53:54.065 INFO  console - Stopping service 'Hermes Cronos Scheduler (HermesCronos)'...
+2026-06-03T15:53:54.072 INFO  console - Service 'Hermes Cronos Scheduler (HermesCronos)' has already stopped.
+2026-06-03T15:53:56.306 INFO  console - Uninstalling service 'Hermes Cronos Scheduler (HermesCronos)'...
+2026-06-03T15:53:56.357 INFO  console - Service 'Hermes Cronos Scheduler (HermesCronos)' was uninstalled successfully.
+2026-06-03T15:53:58.373 INFO  console - Installing service 'Hermes Cronos Scheduler (HermesCronos)'...
+2026-06-03T15:53:58.429 INFO  console - Service 'Hermes Cronos Scheduler (HermesCronos)' was installed successfully.
+2026-06-03T15:54:00.928 INFO  console - Starting service 'Hermes Cronos Scheduler (HermesCronos)'...
+2026-06-03T15:54:01.267 DEBUG console - Starting WinSW in service mode.
+2026-06-03T15:54:01.319 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-03T15:54:01.364 INFO  service - Started process python (20240).
+2026-06-03T15:54:01.396 INFO  service - Service started successfully.
+2026-06-03T15:54:01.563 INFO  console - Service 'Hermes Cronos Scheduler (HermesCronos)' started successfully.
