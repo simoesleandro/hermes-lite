@@ -3,3 +3,4 @@ python-dotenv
 groq
 google-generativeai
 duckduckgo-search
+pymupdf
