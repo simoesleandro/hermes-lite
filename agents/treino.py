@@ -60,11 +60,12 @@ class TreinoAgent(BaseAgent):
         sections = []
 
         if not analise.get("offline"):
+            nr = "não registrado"
             lines = ["=== ANÁLISE 30 DIAS ==="]
-            lines.append(f"  Total treinos:      {v(analise.get('total_treinos'))}")
-            lines.append(f"  Volume total:       {v(analise.get('volume_total'), 'kg')}")
-            lines.append(f"  Duração média:      {v(analise.get('duracao_media'), 'min')}")
-            lines.append(f"  Frequência semanal: {v(analise.get('frequencia_semanal'), 'x/sem')}")
+            lines.append(f"  Total treinos:      {v(analise.get('total_treinos'), fallback=nr)}")
+            lines.append(f"  Volume total:       {v(analise.get('volume_total_kg'), 'kg', nr)}")
+            lines.append(f"  Duração média:      {v(analise.get('duracao_media_min'), 'min', nr)}")
+            lines.append(f"  Frequência semanal: {v(analise.get('treinos_por_semana'), 'x/sem', nr)}")
             sections.append("\n".join(lines))
 
         if recentes:
@@ -72,8 +73,8 @@ class TreinoAgent(BaseAgent):
             for t in recentes:
                 data = t.get("data") or t.get("date") or "?"
                 titulo = t.get("titulo") or t.get("title") or t.get("tipo") or "?"
-                duracao = v(t.get("duracao") or t.get("duration_minutes"), "min")
-                volume = v(t.get("volume"), "kg")
+                duracao = v(t.get("duracao_min") or t.get("duracao") or t.get("duration_minutes"), "min")
+                volume = v(t.get("volume_kg") or t.get("volume"), "kg")
                 lines.append(f"  {data} | {titulo} | {duracao} | vol: {volume}")
 
             top = analise.get("top_exercicios") or []
