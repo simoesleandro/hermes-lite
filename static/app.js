@@ -245,6 +245,15 @@ form.addEventListener("submit", async (e) => {
       scrollToBottom();
     }
 
+    if (data.chart) {
+      const img = document.createElement("img");
+      img.src = `data:image/png;base64,${data.chart}`;
+      img.classList.add("chart-output");
+      img.alt = "Gráfico gerado pelo Analista";
+      bubble.insertBefore(img, body);
+      scrollToBottom();
+    }
+
     if (data.token) {
       body.textContent += data.token;
       scrollToBottom();

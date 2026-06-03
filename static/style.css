@@ -234,6 +234,20 @@ body::after {
   box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.35);
 }
 
+.tab[data-agent="analista"].active {
+  background: #0d2339;
+  color: #7dd3fc;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.3);
+}
+
+/* ── Chart output (AnalistaAgent) ─────────────────── */
+.chart-output {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  display: block;
+}
+
 /* ── Attach button (PDF upload) ───────────────────── */
 #attachBtn {
   display: none;
