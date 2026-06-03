@@ -56,3 +56,9 @@ class SysHealthClient:
             return self._get(f"/api/sono?dias={dias}")
         except Exception:
             return {"offline": True}
+
+    def get_corridas(self, dias: int = 30) -> dict:
+        try:
+            return self._get(f"/api/corridas?dias={dias}")
+        except Exception:
+            return {"offline": True}
