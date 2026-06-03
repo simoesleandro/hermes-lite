@@ -1,5 +1,6 @@
+from typing import Generator
 from .base import BaseAgent
-from model_router import Complexity, get_completion
+from model_router import Complexity, get_completion, stream_completion
 from services.syshealth_client import SysHealthClient
 from db.database import Database
 
@@ -34,21 +35,22 @@ class SaudeAgent(BaseAgent):
     def __init__(self, db: Database):
         super().__init__(db)
 
-    def process(self, message: str, session_id: str) -> str:
+    def _build_messages(self, message: str, session_id: str) -> list[dict]:
         summary = self._client.get_health_summary()
         context = "" if summary.get("offline") else self._format_summary(summary)
-
-        system = self.system_prompt
-        if context:
-            system += f"\n\n{context}"
-
+        system = self.system_prompt + (f"\n\n{context}" if context else "")
         history = self.db.get_history_as_messages(self.name, session_id)
-        messages = (
+        return (
             [{"role": "system", "content": system}]
             + history
             + [{"role": "user", "content": message}]
         )
-        return get_completion(messages, self.complexity)
+
+    def process(self, message: str, session_id: str) -> str:
+        return get_completion(self._build_messages(message, session_id), self.complexity)
+
+    def stream(self, message: str, session_id: str) -> Generator[str, None, None]:
+        yield from stream_completion(self._build_messages(message, session_id), self.complexity)
 
     @staticmethod
     def _format_summary(s: dict) -> str:
