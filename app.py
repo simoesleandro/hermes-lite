@@ -12,6 +12,7 @@ from agents.conhecimento import ConhecimentoAgent
 from agents.desenvolvimento import DesenvolvimentoAgent
 from agents.produtividade import ProdutividadeAgent
 from agents.sentinela import SentinelaAgent
+from agents.treino import TreinoAgent
 from db.database import Database
 
 load_dotenv()
@@ -25,6 +26,7 @@ AGENTS = {
     "desenvolvimento": DesenvolvimentoAgent(db=db),
     "produtividade": ProdutividadeAgent(db=db),
     "sentinela": SentinelaAgent(db=db),
+    "treino": TreinoAgent(db=db),
 }
 
 
