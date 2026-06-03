@@ -196,6 +196,12 @@ body::before {
   color: #fca5a5;
 }
 
+.tab[data-agent="treino"].active {
+  background: #3d2000;
+  color: #fcd34d;
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
+}
+
 .tab-icon { font-style: normal; }
 
 /* ── Status dots ──────────────────────────────────── */
