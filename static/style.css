@@ -303,7 +303,7 @@ body:has(#chat-inner .welcome) .chat-inner {
   max-width: 900px;
   overflow: hidden;
   isolation: isolate;
-  padding: 6px 8px;
+  padding: 5px 8px;
   border-radius: 14px;
   display: flex;
   flex-direction: column;
