@@ -59,13 +59,15 @@ body::before {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 14px 24px;
+  padding: 18px 28px;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 100;
   overflow: hidden;
   isolation: isolate;
+  margin: 0 12px;
+  border-radius: 0 0 16px 16px;
   background: rgba(10, 12, 28, 0.75);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
@@ -77,6 +79,7 @@ body::before {
   content: '';
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background: linear-gradient(
     105deg,
     transparent 20%,
@@ -98,6 +101,7 @@ body::before {
   left: 0;
   right: 0;
   height: 1px;
+  border-radius: inherit;
   background: linear-gradient(
     90deg,
     transparent,
@@ -242,7 +246,7 @@ body::before {
   margin: 0 auto;
   min-height: 100%;
   justify-content: flex-end;
-  padding-bottom: 1.5rem;
+  padding-bottom: 2.5rem;
 }
 
 /* ── Welcome state ────────────────────────────────── */
@@ -286,21 +290,22 @@ body:has(#chat-inner .welcome) .chat-inner {
 /* ── Input bar ────────────────────────────────────── */
 .input-bar {
   background: transparent;
-  border-top: 1px solid transparent;
-  padding: 0.75rem 1.5rem 1rem;
+  border: 1px solid transparent;
+  padding: 16px 24px;
+  margin: 0 12px 12px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   flex-shrink: 0;
-  transition: background 0.35s, border-color 0.35s, padding 0.35s;
+  transition: background 0.35s, border-color 0.35s;
 }
 
 body:not(:has(#chat-inner .welcome)) .input-bar {
   background: rgba(10, 11, 22, 0.82);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border-color: var(--border);
-  padding: 0.75rem 1.5rem 0.85rem;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .input-form {
