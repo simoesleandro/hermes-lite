@@ -18,7 +18,7 @@
   --topbar-h:     56px;
   --footer-h:     80px;
   --input-max:    680px;
-  --chat-max:     740px;
+  --chat-max:     780px;
 }
 
 /* ── Base ─────────────────────────────────────────── */
@@ -179,7 +179,7 @@ body:not(:has(#chat-inner .welcome)) .topbar {
 .chat-inner {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 2rem;
   max-width: var(--chat-max);
   margin: 0 auto;
   min-height: 100%;
@@ -360,8 +360,8 @@ body:not(:has(#chat-inner .welcome)) .input-bar {
 .bubble {
   max-width: 72%;
   padding: 0.7rem 1.1rem;
-  font-size: 0.9rem;
-  line-height: 1.65;
+  font-size: 1.05rem;
+  line-height: 1.7;
   word-break: break-word;
 }
 
@@ -376,7 +376,7 @@ body:not(:has(#chat-inner .welcome)) .input-bar {
   background: transparent;
   color: var(--text);
   border-radius: 4px 20px 20px 20px;
-  padding-left: 0.1rem;
+  padding: 4px 0 12px 0.1rem;
 }
 
 .bubble-meta {
