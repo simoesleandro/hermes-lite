@@ -6,6 +6,7 @@ from agents.saude import SaudeAgent
 from agents.conhecimento import ConhecimentoAgent
 from agents.desenvolvimento import DesenvolvimentoAgent
 from agents.produtividade import ProdutividadeAgent
+from agents.sentinela import SentinelaAgent
 from db.database import Database
 import os
 
@@ -19,6 +20,7 @@ AGENTS = {
     "conhecimento": ConhecimentoAgent(db=db),
     "desenvolvimento": DesenvolvimentoAgent(db=db),
     "produtividade": ProdutividadeAgent(db=db),
+    "sentinela": SentinelaAgent(db=db),
 }
 
 
