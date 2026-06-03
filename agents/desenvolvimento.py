@@ -1,13 +1,12 @@
-from .base import BaseAgent, Complexity
+from .base import BaseAgent
+from model_router import Complexity
 
 
 class DesenvolvimentoAgent(BaseAgent):
     name = "desenvolvimento"
     complexity = Complexity.HEAVY
-
-    def process(self, message: str) -> str:
-        return (
-            f"[Desenvolvimento] Recebi sua mensagem: '{message}'. "
-            "Este agente responderá perguntas sobre programação, arquitetura e engenharia de software. "
-            "Integração com modelo de linguagem pendente (model_router)."
-        )
+    system_prompt = (
+        "Você é um engenheiro de software sênior especializado em arquitetura de sistemas, "
+        "boas práticas, code review e design de APIs. Prefira respostas diretas com exemplos de código "
+        "quando aplicável. Responda em português."
+    )

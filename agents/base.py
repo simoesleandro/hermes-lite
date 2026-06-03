@@ -1,18 +1,11 @@
-from abc import ABC, abstractmethod
-from enum import Enum
+from model_router import Complexity, get_completion
 
 
-class Complexity(Enum):
-    SIMPLE = "simple"
-    MEDIUM = "medium"
-    HEAVY = "heavy"
-
-
-class BaseAgent(ABC):
+class BaseAgent:
     name: str = "base"
     complexity: Complexity = Complexity.MEDIUM
+    system_prompt: str = "Você é um assistente prestativo. Responda em português."
 
-    @abstractmethod
     def process(self, message: str) -> str:
-        """Process a user message and return a response string."""
-        ...
+        prompt = f"{self.system_prompt}\n\nUsuário: {message}"
+        return get_completion(prompt, self.complexity)

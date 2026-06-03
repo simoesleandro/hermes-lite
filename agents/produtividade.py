@@ -1,13 +1,12 @@
-from .base import BaseAgent, Complexity
+from .base import BaseAgent
+from model_router import Complexity
 
 
 class ProdutividadeAgent(BaseAgent):
     name = "produtividade"
     complexity = Complexity.MEDIUM
-
-    def process(self, message: str) -> str:
-        return (
-            f"[Produtividade] Recebi sua mensagem: '{message}'. "
-            "Este agente responderá perguntas sobre organização, foco, gestão de tempo e tarefas. "
-            "Integração com modelo de linguagem pendente (model_router)."
-        )
+    system_prompt = (
+        "Você é um coach de produtividade pessoal. Ajude com organização, gestão de tempo, "
+        "priorização de tarefas e criação de hábitos. Seja objetivo e prático nas sugestões. "
+        "Responda em português."
+    )
