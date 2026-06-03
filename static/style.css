@@ -317,6 +317,15 @@ body {
 .provider-gemini { background: #1e3a5f; color: #93c5fd; }
 .provider-ollama { background: #14432a; color: #6ee7b7; }
 
+/* ── System message ──────────────────────────────── */
+.system-msg {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding: 0.25rem 0;
+  user-select: none;
+}
+
 /* ── Streaming cursor ─────────────────────────────── */
 .bubble.streaming .bubble-body::after {
   content: "▋";

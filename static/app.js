@@ -61,11 +61,39 @@ function appendMessage(role, text, agentName) {
   return row;
 }
 
+// ── System message ────────────────────────────────────────────
+function appendSystemMessage(text) {
+  removeWelcome();
+  const el = document.createElement("div");
+  el.classList.add("system-msg");
+  el.textContent = `— ${text} —`;
+  chatInner.appendChild(el);
+  scrollToBottom();
+}
+
 // ── Submit ────────────────────────────────────────────────────
-form.addEventListener("submit", (e) => {
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const message = input.value.trim();
   if (!message) return;
+
+  // ── /limpar command ──────────────────────────────────────────
+  if (message === "/limpar") {
+    input.value = "";
+    try {
+      await fetch("/chat/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agent: currentAgent, session_id: sessionId }),
+      });
+    } catch {
+      // best-effort: clear UI regardless of network result
+    }
+    chatInner.innerHTML = "";
+    appendSystemMessage("Histórico limpo");
+    input.focus();
+    return;
+  }
 
   appendMessage("user", message, "Você");
   input.value = "";
