@@ -3,7 +3,7 @@
   <name>Hermes Cronos Scheduler</name>
   <description>Cronos — scheduler autônomo do Hermes Lite. Envia briefings e relatórios no Discord.</description>
 
-  <executable>python</executable>
+  <executable>C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe</executable>
   <arguments>-m cronos.cronos</arguments>
   <workingdirectory>%BASE%</workingdirectory>
 
