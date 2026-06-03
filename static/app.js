@@ -61,37 +61,8 @@ function appendMessage(role, text, agentName) {
   return row;
 }
 
-function showTyping() {
-  removeWelcome();
-  const row = document.createElement("div");
-  row.classList.add("msg-row", "assistant", "typing");
-  row.id = "typing-indicator";
-
-  const avatar = document.createElement("div");
-  avatar.classList.add("avatar");
-  avatar.textContent = currentAgent[0].toUpperCase();
-
-  const bubble = document.createElement("div");
-  bubble.classList.add("bubble");
-  for (let i = 0; i < 3; i++) {
-    const dot = document.createElement("span");
-    dot.classList.add("dot");
-    bubble.appendChild(dot);
-  }
-
-  row.appendChild(avatar);
-  row.appendChild(bubble);
-  chatInner.appendChild(row);
-  scrollToBottom();
-}
-
-function removeTyping() {
-  const t = document.getElementById("typing-indicator");
-  if (t) t.remove();
-}
-
 // ── Submit ────────────────────────────────────────────────────
-form.addEventListener("submit", async (e) => {
+form.addEventListener("submit", (e) => {
   e.preventDefault();
   const message = input.value.trim();
   if (!message) return;
@@ -99,30 +70,70 @@ form.addEventListener("submit", async (e) => {
   appendMessage("user", message, "Você");
   input.value = "";
   sendBtn.disabled = true;
-  showTyping();
 
-  try {
-    const res = await fetch("/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, agent: currentAgent, session_id: sessionId }),
-    });
+  // Snapshot agent in case user switches tabs mid-stream
+  const agentSnap = currentAgent;
 
-    const data = await res.json();
-    removeTyping();
+  // Build streaming bubble upfront
+  const row = document.createElement("div");
+  row.classList.add("msg-row", "assistant");
 
-    if (!res.ok) {
-      appendMessage("assistant", `Erro: ${data.error}`, currentAgent);
-    } else {
-      appendMessage("assistant", data.response, data.agent);
-    }
-  } catch {
-    removeTyping();
-    appendMessage("assistant", "Erro de conexão com o servidor.", currentAgent);
-  } finally {
+  const avatar = document.createElement("div");
+  avatar.classList.add("avatar");
+  avatar.textContent = agentSnap[0].toUpperCase();
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("bubble", "streaming");
+
+  const body = document.createElement("div");
+  body.classList.add("bubble-body");
+
+  const meta = document.createElement("div");
+  meta.classList.add("bubble-meta");
+
+  bubble.appendChild(body);
+  bubble.appendChild(meta);
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  chatInner.appendChild(row);
+  scrollToBottom();
+
+  const params = new URLSearchParams({ message, agent: agentSnap, session_id: sessionId });
+  const es = new EventSource(`/chat/stream?${params}`);
+
+  function finalize() {
+    bubble.classList.remove("streaming");
+    meta.textContent = `${agentSnap} · ${nowTime()}`;
+    es.close();
     sendBtn.disabled = false;
     input.focus();
   }
+
+  es.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.error) {
+      body.textContent = `Erro: ${data.error}`;
+      finalize();
+      return;
+    }
+
+    if (data.token) {
+      body.textContent += data.token;
+      scrollToBottom();
+    }
+
+    if (data.done) {
+      finalize();
+    }
+  };
+
+  es.onerror = () => {
+    if (!body.textContent) {
+      body.textContent = "Erro de conexão com o servidor.";
+    }
+    finalize();
+  };
 });
 
 input.focus();

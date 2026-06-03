@@ -300,3 +300,16 @@ body {
 }
 
 .agent-badge span { color: var(--accent-lt); font-weight: 600; }
+
+/* ── Streaming cursor ─────────────────────────────── */
+.bubble.streaming .bubble-body::after {
+  content: "▋";
+  color: var(--accent-lt);
+  animation: blink 1s infinite;
+  display: inline;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
