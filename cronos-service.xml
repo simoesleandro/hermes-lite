@@ -1,0 +1,24 @@
+<service>
+  <id>HermesCronos</id>
+  <name>Hermes Cronos Scheduler</name>
+  <description>Cronos — scheduler autônomo do Hermes Lite. Envia briefings e relatórios no Discord.</description>
+
+  <executable>python</executable>
+  <arguments>-m cronos.cronos</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="1 min"/>
+  <onfailure action="none"/>
+
+  <logmode>rotate</logmode>
+  <logpath>%BASE%\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+
+  <env name="PYTHONUNBUFFERED" value="1"/>
+  <env name="PYTHONIOENCODING" value="utf-8"/>
+</service>
