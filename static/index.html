@@ -27,6 +27,7 @@
         <button class="tab" data-agent="sentinela">Sentinela</button>
         <button class="tab" data-agent="juridico">Jurídico</button>
         <button class="tab" data-agent="investigador">Investigador</button>
+        <button class="tab" data-agent="leitor">Leitor</button>
       </nav>
 
       <div class="status-dots" id="status-dots" aria-label="Status dos providers">
@@ -47,6 +48,8 @@
 
     <footer class="input-bar">
       <form id="chat-form" class="input-form">
+        <input type="file" id="pdfInput" accept=".pdf" hidden>
+        <button type="button" id="attachBtn" title="Anexar PDF" aria-label="Anexar PDF">📎</button>
         <input
           id="message-input"
           type="text"
