@@ -202,6 +202,12 @@ body::before {
   box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.3);
 }
 
+.tab[data-agent="investigador"].active {
+  background: #2d1f00;
+  color: #fde68a;
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
+}
+
 .tab[data-agent="treino"].active {
   background: #3d2000;
   color: #fcd34d;
@@ -437,6 +443,22 @@ body:has(#chat-inner .welcome) .chat-inner {
 }
 
 .agent-badge span { color: var(--accent-lt); font-weight: 500; }
+
+/* ── Progress steps (InvestigadorAgent) ──────────── */
+.progress-steps {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border-left: 2px solid rgba(139, 92, 246, 0.4);
+}
+
+.progress-step {
+  padding: 2px 0;
+  opacity: 0.7;
+}
 
 /* ── Message rows ─────────────────────────────────── */
 .msg-row {

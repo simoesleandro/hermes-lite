@@ -166,6 +166,8 @@ form.addEventListener("submit", async (e) => {
   const params = new URLSearchParams({ message, agent: agentSnap, session_id: sessionId });
   const es = new EventSource(`/chat/stream?${params}`);
 
+  let progressSteps = null;
+
   function finalize(provider = null) {
     bubble.classList.remove("streaming");
     if (body.textContent) {
@@ -194,12 +196,32 @@ form.addEventListener("submit", async (e) => {
       return;
     }
 
+    if (data.progress) {
+      if (!progressSteps) {
+        progressSteps = document.createElement("div");
+        progressSteps.classList.add("progress-steps");
+        bubble.insertBefore(progressSteps, body);
+      }
+      const step = document.createElement("div");
+      step.classList.add("progress-step");
+      step.textContent = data.progress;
+      progressSteps.appendChild(step);
+      scrollToBottom();
+    }
+
     if (data.token) {
       body.textContent += data.token;
       scrollToBottom();
     }
 
     if (data.done) {
+      if (progressSteps) {
+        setTimeout(() => {
+          progressSteps.style.transition = "opacity 0.5s";
+          progressSteps.style.opacity = "0";
+          setTimeout(() => progressSteps && progressSteps.remove(), 500);
+        }, 2000);
+      }
       finalize(data.provider);
     }
   };
