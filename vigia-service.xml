@@ -1,0 +1,24 @@
+<service>
+  <id>hermes-vigia</id>
+  <name>Hermes Vigia</name>
+  <description>Monitor de sistema do Hermes Lite — notifica no Discord quando serviços caem ou voltam.</description>
+
+  <executable>C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe</executable>
+  <arguments>-m vigia.vigia</arguments>
+  <workingdirectory>C:\Users\Leand\onedrive\desktop\hermes-lite</workingdirectory>
+
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="1 min"/>
+  <onfailure action="none"/>
+
+  <logmode>rotate</logmode>
+  <log mode="roll-by-size">
+    <logpath>C:\Users\Leand\onedrive\desktop\hermes-lite\logs</logpath>
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+
+  <env name="PYTHONUNBUFFERED" value="1"/>
+  <env name="PYTHONIOENCODING" value="utf-8"/>
+</service>
