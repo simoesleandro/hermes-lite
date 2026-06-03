@@ -45,6 +45,18 @@ body::before {
   z-index: 0;
 }
 
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 180px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* ── Layout ───────────────────────────────────────── */
 .layout {
   display: flex;
@@ -322,7 +334,7 @@ body:has(#chat-inner .welcome) .chat-inner {
 /* ── Input bar ────────────────────────────────────── */
 .input-bar {
   position: fixed;
-  bottom: 8px;
+  bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 96px);
@@ -331,7 +343,7 @@ body:has(#chat-inner .welcome) .chat-inner {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  z-index: 100;
+  z-index: 10;
 }
 
 .input-form {
