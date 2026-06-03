@@ -97,5 +97,18 @@ def chat_stream():
     )
 
 
+@app.route("/chat/clear", methods=["POST"])
+def chat_clear():
+    data = request.get_json(force=True)
+    agent_name = data.get("agent", "conhecimento").lower()
+    session_id = data.get("session_id") or ""
+
+    if not session_id:
+        return jsonify({"error": "session_id obrigatório"}), 400
+
+    cleared = db.clear_history(agent=agent_name, session_id=session_id)
+    return jsonify({"cleared": cleared})
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5050)
