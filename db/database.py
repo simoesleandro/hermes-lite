@@ -44,3 +44,12 @@ class Database:
                 (agent, limit),
             ).fetchall()
         return [dict(row) for row in reversed(rows)]
+
+    def get_history_as_messages(self, agent: str, limit: int = 10) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT role, content FROM messages "
+                "WHERE agent = ? ORDER BY id DESC LIMIT ?",
+                (agent, limit),
+            ).fetchall()
+        return [{"role": row["role"], "content": row["content"]} for row in reversed(rows)]
