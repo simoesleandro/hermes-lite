@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+db/hermes.db
+.env
+*.db
+.DS_Store
