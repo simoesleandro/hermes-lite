@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Hermes Lite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Serif+Display&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
@@ -13,12 +16,6 @@
       <div class="brand">
         <span class="brand-icon">⬡</span>
         <span class="brand-name">Hermes <span class="brand-lite">Lite</span></span>
-      </div>
-
-      <div class="status-dots" id="status-dots" aria-label="Status dos providers">
-        <span class="status-dot checking" id="dot-groq"   data-provider="groq"   title="Groq: checando...">●</span>
-        <span class="status-dot checking" id="dot-gemini" data-provider="gemini" title="Gemini: checando...">●</span>
-        <span class="status-dot checking" id="dot-ollama" data-provider="ollama" title="Ollama: checando...">●</span>
       </div>
 
       <nav class="agent-tabs" role="group" aria-label="Selecionar agente">
@@ -38,13 +35,19 @@
           <span class="tab-icon">🔎</span> Sentinela
         </button>
       </nav>
+
+      <div class="status-dots" id="status-dots" aria-label="Status dos providers">
+        <span class="status-dot checking" id="dot-groq"   data-provider="groq"   title="Groq: checando...">●</span>
+        <span class="status-dot checking" id="dot-gemini" data-provider="gemini" title="Gemini: checando...">●</span>
+        <span class="status-dot checking" id="dot-ollama" data-provider="ollama" title="Ollama: checando...">●</span>
+      </div>
     </header>
 
     <main class="chat-area" id="chat-area">
       <div class="chat-inner" id="chat-inner">
         <div class="welcome">
-          <p class="welcome-title">Olá! Sou o <strong>Hermes Lite</strong>.</p>
-          <p class="welcome-sub">Selecione um agente acima e comece a conversar.</p>
+          <p class="welcome-title">Como posso ajudar?</p>
+          <p class="welcome-sub">Selecione um agente e comece a conversar</p>
         </div>
       </div>
     </main>
@@ -60,7 +63,7 @@
         />
         <button type="submit" id="send-btn" aria-label="Enviar">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-               fill="none" stroke="currentColor" stroke-width="2"
+               fill="none" stroke="currentColor" stroke-width="2.5"
                stroke-linecap="round" stroke-linejoin="round">
             <line x1="22" y1="2" x2="11" y2="13"/>
             <polygon points="22 2 15 22 11 13 2 9 22 2"/>
