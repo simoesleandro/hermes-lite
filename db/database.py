@@ -59,3 +59,12 @@ class Database:
                 (agent, session_id, limit),
             ).fetchall()
         return [{"role": row["role"], "content": row["content"]} for row in reversed(rows)]
+
+    def clear_history(self, agent: str, session_id: str) -> int:
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "DELETE FROM messages WHERE agent = ? AND session_id = ?",
+                (agent, session_id),
+            )
+            conn.commit()
+        return cursor.rowcount
