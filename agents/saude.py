@@ -1,6 +1,7 @@
 from .base import BaseAgent
 from model_router import Complexity, get_completion
 from services.syshealth_client import SysHealthClient
+from db.database import Database
 
 
 class SaudeAgent(BaseAgent):
@@ -19,16 +20,24 @@ class SaudeAgent(BaseAgent):
 
     _client = SysHealthClient()
 
+    def __init__(self, db: Database):
+        super().__init__(db)
+
     def process(self, message: str) -> str:
         summary = self._client.get_health_summary()
         context = "" if summary.get("offline") else self._format_summary(summary)
 
-        prompt = self.system_prompt
+        system = self.system_prompt
         if context:
-            prompt += f"\n\n{context}"
-        prompt += f"\n\nUsuário: {message}"
+            system += f"\n\n{context}"
 
-        return get_completion(prompt, self.complexity)
+        history = self.db.get_history_as_messages(self.name)
+        messages = (
+            [{"role": "system", "content": system}]
+            + history
+            + [{"role": "user", "content": message}]
+        )
+        return get_completion(messages, self.complexity)
 
     @staticmethod
     def _format_summary(s: dict) -> str:
