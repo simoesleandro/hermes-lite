@@ -196,6 +196,12 @@ body::before {
   color: #fca5a5;
 }
 
+.tab[data-agent="juridico"].active {
+  background: #1a2e1a;
+  color: #86efac;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.3);
+}
+
 .tab[data-agent="treino"].active {
   background: #3d2000;
   color: #fcd34d;
