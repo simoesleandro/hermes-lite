@@ -152,11 +152,13 @@ body::before {
 /* ── Agent tabs ───────────────────────────────────── */
 .agent-tabs {
   display: flex;
-  gap: 0.5rem;
+  gap: 6px;
   flex: 1;
   align-items: center;
   overflow-x: auto;
+  flex-wrap: nowrap;
   scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .agent-tabs::-webkit-scrollbar { display: none; }
 
@@ -164,16 +166,17 @@ body::before {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 20px;
   border: none;
   background: transparent;
   color: var(--text-sub);
   font-family: 'DM Sans', sans-serif;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: background 0.15s, color 0.15s;
 }
 
