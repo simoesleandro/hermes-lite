@@ -4,3 +4,9 @@ groq
 google-generativeai
 duckduckgo-search
 pymupdf
+pandas
+numpy
+matplotlib
+plotly
+kaleido
+seaborn
