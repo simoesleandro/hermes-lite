@@ -113,6 +113,12 @@ body {
 
 .tab-icon { font-style: normal; }
 
+.tab[data-agent="sentinela"].active {
+  background: #3d1515;
+  border-color: #dc2626;
+  color: #fca5a5;
+}
+
 /* ── Chat area ────────────────────────────────────── */
 .chat-area {
   flex: 1;
