@@ -1,5 +1,14 @@
 # Hermes Lite
 
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
+![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-F55036?logo=groq&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-4285F4?logo=google&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-llama3-white?logo=ollama&logoColor=black)
+![Agents](https://img.shields.io/badge/Agents-10-7c3aed)
+![License](https://img.shields.io/badge/License-MIT-22c55e)
+![Last Commit](https://img.shields.io/github/last-commit/simoesleandro/hermes-lite?color=8892b0)
+
 > A local multi-agent AI assistant with real-time streaming, live data integration, and autonomous automation.
 
 Hermes Lite is a personal AI platform featuring 10 specialized agents, automatic LLM routing with three-provider fallback, a Gemini-style web interface, an autonomous task scheduler with Discord notifications, and a real-time system monitor.
