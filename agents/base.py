@@ -10,8 +10,8 @@ class BaseAgent:
     def __init__(self, db: Database):
         self.db = db
 
-    def process(self, message: str) -> str:
-        history = self.db.get_history_as_messages(self.name)
+    def process(self, message: str, session_id: str) -> str:
+        history = self.db.get_history_as_messages(self.name, session_id)
         messages = (
             [{"role": "system", "content": self.system_prompt}]
             + history

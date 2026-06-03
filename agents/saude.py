@@ -34,7 +34,7 @@ class SaudeAgent(BaseAgent):
     def __init__(self, db: Database):
         super().__init__(db)
 
-    def process(self, message: str) -> str:
+    def process(self, message: str, session_id: str) -> str:
         summary = self._client.get_health_summary()
         context = "" if summary.get("offline") else self._format_summary(summary)
 
@@ -42,7 +42,7 @@ class SaudeAgent(BaseAgent):
         if context:
             system += f"\n\n{context}"
 
-        history = self.db.get_history_as_messages(self.name)
+        history = self.db.get_history_as_messages(self.name, session_id)
         messages = (
             [{"role": "system", "content": system}]
             + history
