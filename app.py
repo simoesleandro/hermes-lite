@@ -1,5 +1,10 @@
 import json
+import os
+import time
+import urllib.request
 import uuid
+from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
+from datetime import datetime
 from flask import Flask, Response, request, jsonify, send_from_directory, stream_with_context
 from dotenv import load_dotenv
 from agents.saude import SaudeAgent
@@ -8,7 +13,6 @@ from agents.desenvolvimento import DesenvolvimentoAgent
 from agents.produtividade import ProdutividadeAgent
 from agents.sentinela import SentinelaAgent
 from db.database import Database
-import os
 
 load_dotenv()
 
@@ -110,6 +114,101 @@ def chat_clear():
 
     cleared = db.clear_history(agent=agent_name, session_id=session_id)
     return jsonify({"cleared": cleared})
+
+
+# ── Provider / service health checks ─────────────────────────────────────────
+
+def _check_groq() -> dict:
+    api_key = os.getenv("GROQ_API_KEY", "")
+    if not api_key:
+        return {"status": "offline", "latency_ms": None}
+    try:
+        from groq import Groq
+        t = time.time()
+        Groq(api_key=api_key).models.list()
+        return {"status": "online", "latency_ms": round((time.time() - t) * 1000)}
+    except Exception:
+        return {"status": "offline", "latency_ms": None}
+
+
+def _check_gemini() -> dict:
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        return {"status": "offline", "latency_ms": None}
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        t = time.time()
+        list(genai.list_models())
+        return {"status": "online", "latency_ms": round((time.time() - t) * 1000)}
+    except Exception:
+        return {"status": "offline", "latency_ms": None}
+
+
+def _check_ollama() -> dict:
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    try:
+        t = time.time()
+        req = urllib.request.Request(f"{base_url}/api/tags")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            resp.read()
+        return {"status": "online", "latency_ms": round((time.time() - t) * 1000)}
+    except Exception:
+        return {"status": "offline", "latency_ms": None}
+
+
+def _check_syshealth() -> dict:
+    try:
+        req = urllib.request.Request("http://localhost:5060/health")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            resp.read()
+        return {"status": "online"}
+    except Exception:
+        return {"status": "offline"}
+
+
+def _check_sentinela() -> dict:
+    from services.sentinela_client import SENTINELA_DB
+    if not os.path.exists(SENTINELA_DB):
+        return {"status": "offline", "contratos": None}
+    try:
+        import sqlite3
+        conn = sqlite3.connect(f"file:{SENTINELA_DB}?mode=ro", uri=True)
+        count = conn.execute("SELECT COUNT(*) FROM contratos").fetchone()[0]
+        conn.close()
+        return {"status": "online", "contratos": count}
+    except Exception:
+        return {"status": "offline", "contratos": None}
+
+
+@app.route("/api/status")
+def api_status():
+    checks = {
+        "groq":      _check_groq,
+        "gemini":    _check_gemini,
+        "ollama":    _check_ollama,
+        "syshealth": _check_syshealth,
+        "sentinela": _check_sentinela,
+    }
+    results: dict = {}
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(fn): name for name, fn in checks.items()}
+        done, _ = futures_wait(futures, timeout=6)
+        for future in done:
+            name = futures[future]
+            try:
+                results[name] = future.result()
+            except Exception:
+                results[name] = {"status": "offline", "latency_ms": None}
+    for future, name in futures.items():
+        if name not in results:
+            results[name] = {"status": "offline", "latency_ms": None}
+
+    return jsonify({
+        "providers": {k: results[k] for k in ("groq", "gemini", "ollama") if k in results},
+        "services":  {k: results[k] for k in ("syshealth", "sentinela") if k in results},
+        "timestamp": datetime.utcnow().isoformat(),
+    })
 
 
 if __name__ == "__main__":
