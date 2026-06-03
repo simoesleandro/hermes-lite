@@ -1,3 +1,4 @@
+import uuid
 from flask import Flask, request, jsonify, send_from_directory
 from dotenv import load_dotenv
 from agents.saude import SaudeAgent
@@ -30,6 +31,7 @@ def chat():
     data = request.get_json(force=True)
     message = data.get("message", "").strip()
     agent_name = data.get("agent", "conhecimento").lower()
+    session_id = data.get("session_id") or str(uuid.uuid4())
 
     if not message:
         return jsonify({"error": "Mensagem vazia"}), 400
@@ -38,9 +40,9 @@ def chat():
     if agent is None:
         return jsonify({"error": f"Agente '{agent_name}' não encontrado"}), 404
 
-    response = agent.process(message)
-    db.save_message(agent=agent_name, role="user", content=message)
-    db.save_message(agent=agent_name, role="assistant", content=response)
+    response = agent.process(message, session_id)
+    db.save_message(agent=agent_name, role="user", content=message, session_id=session_id)
+    db.save_message(agent=agent_name, role="assistant", content=response, session_id=session_id)
 
     return jsonify({"agent": agent_name, "response": response})
 
