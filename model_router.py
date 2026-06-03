@@ -20,10 +20,10 @@ class Complexity(Enum):
 
 # ── Providers ────────────────────────────────────────────────────────────────
 
-def _call_ollama(prompt: str) -> str:
+def _call_ollama(messages: list[dict]) -> str:
     payload = json.dumps({
         "model": "llama3",
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": messages,
         "stream": False,
     }).encode()
     req = urllib.request.Request(
@@ -35,25 +35,33 @@ def _call_ollama(prompt: str) -> str:
         return json.loads(resp.read())["message"]["content"]
 
 
-def _call_groq(prompt: str) -> str:
+def _call_groq(messages: list[dict]) -> str:
     if not GROQ_API_KEY:
         raise ValueError("GROQ_API_KEY not set")
     from groq import Groq
     client = Groq(api_key=GROQ_API_KEY)
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
+        messages=messages,
     )
     return resp.choices[0].message.content
 
 
-def _call_gemini(prompt: str) -> str:
+def _call_gemini(messages: list[dict]) -> str:
     if not GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY not set")
     import google.generativeai as genai
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-2.5-flash")
-    return model.generate_content(prompt).text
+
+    system_content = next((m["content"] for m in messages if m["role"] == "system"), None)
+    # Gemini uses "model" for assistant turns and accepts system_instruction separately
+    contents = [
+        {"role": "model" if m["role"] == "assistant" else "user",
+         "parts": [{"text": m["content"]}]}
+        for m in messages if m["role"] != "system"
+    ]
+    model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=system_content)
+    return model.generate_content(contents).text
 
 
 # ── Routing table ─────────────────────────────────────────────────────────────
@@ -66,11 +74,11 @@ _CHAIN: dict[Complexity, list] = {
 }
 
 
-def get_completion(prompt: str, complexity: Complexity) -> str:
+def get_completion(messages: list[dict], complexity: Complexity) -> str:
     errors: list[str] = []
     for provider in _CHAIN[complexity]:
         try:
-            return provider(prompt)
+            return provider(messages)
         except Exception as exc:
             errors.append(f"{provider.__name__}: {exc}")
     raise RuntimeError(
