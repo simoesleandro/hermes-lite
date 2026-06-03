@@ -13,10 +13,10 @@ app = Flask(__name__, static_folder="static")
 db = Database()
 
 AGENTS = {
-    "saude": SaudeAgent(),
-    "conhecimento": ConhecimentoAgent(),
-    "desenvolvimento": DesenvolvimentoAgent(),
-    "produtividade": ProdutividadeAgent(),
+    "saude": SaudeAgent(db=db),
+    "conhecimento": ConhecimentoAgent(db=db),
+    "desenvolvimento": DesenvolvimentoAgent(db=db),
+    "produtividade": ProdutividadeAgent(db=db),
 }
 
 
@@ -38,8 +38,8 @@ def chat():
     if agent is None:
         return jsonify({"error": f"Agente '{agent_name}' não encontrado"}), 404
 
-    db.save_message(agent=agent_name, role="user", content=message)
     response = agent.process(message)
+    db.save_message(agent=agent_name, role="user", content=message)
     db.save_message(agent=agent_name, role="assistant", content=response)
 
     return jsonify({"agent": agent_name, "response": response})
