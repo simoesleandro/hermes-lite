@@ -101,9 +101,17 @@ form.addEventListener("submit", (e) => {
   const params = new URLSearchParams({ message, agent: agentSnap, session_id: sessionId });
   const es = new EventSource(`/chat/stream?${params}`);
 
-  function finalize() {
+  function finalize(provider = null) {
     bubble.classList.remove("streaming");
-    meta.textContent = `${agentSnap} · ${nowTime()}`;
+    const timeSpan = document.createElement("span");
+    timeSpan.textContent = `${agentSnap} · ${nowTime()}`;
+    meta.appendChild(timeSpan);
+    if (provider) {
+      const badge = document.createElement("span");
+      badge.classList.add("provider-badge", `provider-${provider}`);
+      badge.textContent = provider;
+      meta.appendChild(badge);
+    }
     es.close();
     sendBtn.disabled = false;
     input.focus();
@@ -124,7 +132,7 @@ form.addEventListener("submit", (e) => {
     }
 
     if (data.done) {
-      finalize();
+      finalize(data.provider);
     }
   };
 

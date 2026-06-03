@@ -301,6 +301,22 @@ body {
 
 .agent-badge span { color: var(--accent-lt); font-weight: 600; }
 
+/* ── Provider badge ───────────────────────────────── */
+.provider-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.provider-groq   { background: #3b1f6e; color: #c4b5fd; }
+.provider-gemini { background: #1e3a5f; color: #93c5fd; }
+.provider-ollama { background: #14432a; color: #6ee7b7; }
+
 /* ── Streaming cursor ─────────────────────────────── */
 .bubble.streaming .bubble-body::after {
   content: "▋";
