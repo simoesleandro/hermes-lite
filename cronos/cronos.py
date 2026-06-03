@@ -1,4 +1,5 @@
 import logging
+import sys
 import traceback
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -60,6 +61,17 @@ _TASKS = [
 
 
 def main() -> None:
+    if "--test" in sys.argv:
+        logger.info("Modo teste — disparando todas as tasks...")
+        from cronos.tasks.resumo_saude import run as run_saude
+        from cronos.tasks.briefing import run as run_briefing
+        from cronos.tasks.sentinela_semanal import run as run_sentinela
+        run_saude()
+        run_briefing()
+        run_sentinela()
+        logger.info("Modo teste concluído.")
+        sys.exit(0)
+
     now = datetime.now(_TZ).strftime("%Y-%m-%d %H:%M:%S")
     logger.info("Cronos iniciando...")
     _log(f"🟢 Cronos online — {now}")
