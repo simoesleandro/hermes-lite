@@ -12,14 +12,21 @@ Gere código Python para responder a pergunta do usuário.
 Bases de dados disponíveis (variáveis já definidas no ambiente):
 - SENTINELA_DB: SQLite com contratos públicos do Rio de Janeiro
   Tabelas:
-    contratos(id, orgao, fornecedor, objeto, valor_global,
-              data_assinatura, categoria_processo_nome, cnpj)
+    fornecedores(ni, tipo_pessoa, razao_social, primeira_vez, atualizado_em)
+    contratos(numero_controle_pncp, orgao_cnpj, fornecedor_ni, objeto,
+              valor_inicial, valor_global, data_assinatura,
+              categoria_processo_nome, data_vigencia_inicio, data_vigencia_fim)
     alertas(id, contrato_id, tipo, descricao, severidade)
-  ATENÇÃO: NÃO existe tabela "fornecedores".
-  Fornecedor é coluna TEXT dentro de contratos.
+    orgaos(cnpj, razao_social, poder_id, esfera_id, municipio_nome,
+           municipio_ibge, uf_sigla, primeira_vez, atualizado_em)
+  JOINs corretos:
+    contratos.fornecedor_ni = fornecedores.ni
+    contratos.orgao_cnpj    = orgaos.cnpj
   Exemplos corretos:
-    SELECT fornecedor, SUM(valor_global) AS total
-    FROM contratos GROUP BY fornecedor ORDER BY total DESC LIMIT 10;
+    SELECT f.razao_social, SUM(c.valor_global) AS total
+    FROM contratos c
+    JOIN fornecedores f ON c.fornecedor_ni = f.ni
+    GROUP BY f.razao_social ORDER BY total DESC LIMIT 10;
 
     SELECT * FROM alertas
     WHERE severidade = 'alta' ORDER BY id DESC;

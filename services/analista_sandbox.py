@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 
-SENTINELA_DB = r"C:\Users\Leand\onedrive\desktop\sentinela\data\sentinela_rj.db"
+SENTINELA_DB = r"C:\Users\Leand\OneDrive\Desktop\Sentinela\data\sentinela_rj.db"
 SYSHEALTH_DB = r"C:\Users\Leand\onedrive\desktop\projeto_fit\nutricao.db"
 
 BLOCKED = [
