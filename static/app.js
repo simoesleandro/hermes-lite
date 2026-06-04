@@ -65,38 +65,6 @@ input.addEventListener("keydown", (e) => {
   }
 });
 
-// ── Provider status dots ──────────────────────────────
-const _statusDots = {
-  groq:   document.getElementById("dot-groq"),
-  gemini: document.getElementById("dot-gemini"),
-  ollama: document.getElementById("dot-ollama"),
-};
-
-async function fetchStatus() {
-  Object.values(_statusDots).forEach((d) => {
-    d.className = "status-dot checking";
-    d.title = `${d.dataset.provider}: checando...`;
-  });
-  try {
-    const res  = await fetch("/api/status");
-    const data = await res.json();
-    const providers = data.providers || {};
-    for (const [name, dot] of Object.entries(_statusDots)) {
-      const info = providers[name];
-      if (!info) continue;
-      dot.className = `status-dot ${info.status === "online" ? "online" : "offline"}`;
-      const lat = info.latency_ms != null ? ` · ${info.latency_ms}ms` : "";
-      dot.title = `${name}: ${info.status}${lat}`;
-    }
-  } catch {
-    Object.values(_statusDots).forEach((d) => {
-      d.className = "status-dot offline";
-      d.title = `${d.dataset.provider}: erro`;
-    });
-  }
-}
-fetchStatus();
-setInterval(fetchStatus, 30000);
 
 // ── Badge ─────────────────────────────────────────────
 function updateBadge(agentKey) {
@@ -170,8 +138,6 @@ function escapeHtml(str) {
 }
 
 function removeWelcome() {
-  const w = document.getElementById("welcome");
-  if (w) w.remove();
   app.classList.remove("layout-empty");
 }
 
@@ -536,7 +502,7 @@ function newConversation() {
   state.currentAgent  = "conhecimento";
   state.agentLocked   = false;
 
-  chatInner.innerHTML = `<div class="welcome" id="welcome"><p class="welcome-title">Como posso ajudar?</p></div>`;
+  chatInner.innerHTML = "";
   app.classList.add("layout-empty");
 
   updateBadge("conhecimento");

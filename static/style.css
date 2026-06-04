@@ -131,19 +131,8 @@ html, body {
   position: relative;
 }
 
-/* ── Topbar ──────────────────────────────────────────── */
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 10px 20px;
-  flex-shrink: 0;
-  background: rgba(10, 12, 28, 0.5);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
-  height: 50px;
-}
+/* ── Topbar (empty — reserved for future controls) ───── */
+.topbar { display: none; }
 
 /* ── Status dots ─────────────────────────────────────── */
 .status-dots { display: flex; gap: 6px; align-items: center; }
@@ -172,20 +161,6 @@ html, body {
   min-height: 100%;
 }
 
-.welcome {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-.welcome-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 1.9rem;
-  color: var(--text);
-  opacity: 0.4;
-  text-align: center;
-}
 
 /* ── Input bar ───────────────────────────────────────── */
 .input-bar {
@@ -293,7 +268,7 @@ html, body {
 #send-btn:disabled { opacity: 0.4; cursor: default; }
 
 /* ── Agent badge row ─────────────────────────────────── */
-.agent-badge-row { display: flex; align-items: center; gap: 8px; position: relative; }
+.agent-badge-row { display: flex; align-items: center; gap: 8px; position: relative; margin-top: 12px; }
 
 .agent-badge {
   display: inline-flex;
