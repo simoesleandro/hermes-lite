@@ -30,7 +30,16 @@ db = Database()
 # ── Agent auto-routing ────────────────────────────────────────────────────────
 
 _RULES = [
-    (re.compile(r"\b(ativar|parar|reiniciar|desligar|iniciar)\s+(o\s+)?(cronos|vigia|hermes)", re.I), "ops"),
+    (re.compile(
+        r"\b(ativar|parar|reiniciar|desligar|iniciar|ligar)\b"
+        r"|status\s+(dos\s+)?servi"
+        r"|\bsc\s+(start|stop|query|restart)\b"
+        r"|qual\s+servi"
+        r"|hermes\s+online"
+        r"|\bservi[cç]o\b"
+        r"|\b(cronos|vigia)\b",
+        re.I,
+    ), "ops"),
     (re.compile(r"bebi|água|peso|hrv|sono|calorias|hidrat", re.I), "saude"),
     (re.compile(r"treino|muscula|corrida|ppl|série|repetição|supino", re.I), "treino"),
     (re.compile(r"código|bug|python|refator|arquitetura|função|classe", re.I), "desenvolvimento"),
