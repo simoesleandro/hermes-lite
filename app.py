@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import subprocess
 import time
 import urllib.request
 import uuid
@@ -18,6 +19,7 @@ from agents.juridico import JuridicoAgent
 from agents.investigador import InvestigadorAgent
 from agents.leitor_pdf import LeitorPDFAgent
 from agents.analista import AnalistaAgent
+from agents.ops import OpsAgent
 from db.database import Database
 
 load_dotenv()
@@ -28,6 +30,7 @@ db = Database()
 # ── Agent auto-routing ────────────────────────────────────────────────────────
 
 _RULES = [
+    (re.compile(r"\b(ativar|parar|reiniciar|desligar|iniciar)\s+(o\s+)?(cronos|vigia|hermes)", re.I), "ops"),
     (re.compile(r"bebi|água|peso|hrv|sono|calorias|hidrat", re.I), "saude"),
     (re.compile(r"treino|muscula|corrida|ppl|série|repetição|supino", re.I), "treino"),
     (re.compile(r"código|bug|python|refator|arquitetura|função|classe", re.I), "desenvolvimento"),
@@ -62,6 +65,7 @@ AGENTS = {
     "investigador": InvestigadorAgent(db=db),
     "leitor": LeitorPDFAgent(db=db),
     "analista": AnalistaAgent(db=db),
+    "ops":      OpsAgent(db=db),
 }
 
 
@@ -170,6 +174,39 @@ def upload_pdf():
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+_OPS_ALLOWED_SERVICES = {"HermesCronos", "HermesVigia", "HermesLite"}
+_OPS_ALLOWED_ACTIONS  = {"start", "stop", "restart"}
+
+
+@app.route("/api/ops/service", methods=["POST"])
+def ops_service():
+    data    = request.get_json(force=True)
+    action  = data.get("action", "").lower()
+    service = data.get("service", "")
+
+    if service not in _OPS_ALLOWED_SERVICES:
+        return jsonify({"error": "serviço não permitido"}), 403
+    if action not in _OPS_ALLOWED_ACTIONS:
+        return jsonify({"error": "ação não permitida"}), 400
+
+    if action == "restart":
+        r1 = subprocess.run(["sc", "stop",  service], capture_output=True, text=True, timeout=15)
+        time.sleep(2)
+        r2 = subprocess.run(["sc", "start", service], capture_output=True, text=True, timeout=15)
+        return jsonify({
+            "ok":     r2.returncode == 0,
+            "output": f"[stop] {r1.stdout.strip()}\n[start] {r2.stdout.strip()}",
+            "error":  " | ".join(filter(None, [r1.stderr.strip(), r2.stderr.strip()])),
+        })
+
+    result = subprocess.run(["sc", action, service], capture_output=True, text=True, timeout=15)
+    return jsonify({
+        "ok":     result.returncode == 0,
+        "output": result.stdout.strip(),
+        "error":  result.stderr.strip(),
+    })
 
 
 @app.route("/chat", methods=["POST"])

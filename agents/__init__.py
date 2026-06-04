@@ -2,5 +2,6 @@ from .saude import SaudeAgent
 from .conhecimento import ConhecimentoAgent
 from .desenvolvimento import DesenvolvimentoAgent
 from .produtividade import ProdutividadeAgent
+from .ops import OpsAgent
 
-__all__ = ["SaudeAgent", "ConhecimentoAgent", "DesenvolvimentoAgent", "ProdutividadeAgent"]
+__all__ = ["SaudeAgent", "ConhecimentoAgent", "DesenvolvimentoAgent", "ProdutividadeAgent", "OpsAgent"]
