@@ -1,0 +1,11 @@
+<service>
+  <id>HermesSysHealthAPI</id>
+  <name>Hermes SysHealth API</name>
+  <description>SysHealth API server na porta 5060</description>
+  <executable>C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe</executable>
+  <arguments>C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py</arguments>
+  <logpath>logs/syshealth-api-service</logpath>
+  <logmode>rotate</logmode>
+  <env name="PYTHONUNBUFFERED" value="1"/>
+  <env name="PYTHONIOENCODING" value="utf-8"/>
+</service>
