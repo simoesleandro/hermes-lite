@@ -10,6 +10,7 @@ const AGENT_META = {
   investigador:    { icon: "🕵️", label: "Investigador" },
   leitor:          { icon: "📄", label: "Leitor" },
   analista:        { icon: "📊", label: "Analista" },
+  ops:             { icon: "⚙️", label: "Ops" },
 };
 
 const STATUS_MSG = {
@@ -23,6 +24,7 @@ const STATUS_MSG = {
   investigador:    "🕵️ Investigador está pesquisando...",
   leitor:          "📄 Leitor está processando o documento...",
   analista:        "📊 Analista está preparando o gráfico...",
+  ops:             "⚙️ Ops está consultando os serviços...",
 };
 
 // ── Global state ──────────────────────────────────────
