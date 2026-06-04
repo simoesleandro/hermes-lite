@@ -69,10 +69,21 @@ def _query_all_status() -> list[dict]:
 
 
 def _format_status(statuses: list[dict]) -> str:
-    lines = ["Status dos servicos Windows:"]
+    lines = ["Serviços Windows:"]
     for s in statuses:
-        icon = "🟢" if s["state"] == "RUNNING" else "🔴"
-        lines.append(f"  {icon} {s['service']}: {s['state']}")
+        icon = "✅" if s["state"] == "RUNNING" else "❌"
+        lines.append(f"  {icon} {s['service']} — {s['state']}")
+    return "\n".join(lines)
+
+
+def _format_sc_result(action: str, service: str, result: dict) -> str:
+    icon = "✅" if result["ok"] else "❌"
+    status = "sucesso" if result["ok"] else "falhou"
+    lines = [f"{icon} sc {action} {service} — {status}"]
+    if result["stdout"]:
+        lines.append(result["stdout"][:400])
+    if result["stderr"]:
+        lines.append(f"Erro: {result['stderr'][:200]}")
     return "\n".join(lines)
 
 
@@ -135,20 +146,10 @@ class OpsAgent(BaseAgent):
         action, service = _parse(message)
 
         if action == "status":
-            statuses = _query_all_status()
-            msgs = [
-                {"role": "system", "content": _SYSTEM},
-                {"role": "user",   "content": f"Pedido: {message}\n\n{_format_status(statuses)}"},
-            ]
-            return get_completion(msgs, self.complexity)
+            return _format_status(_query_all_status())
 
         if action in ("start", "stop", "restart") and service:
-            result = _run_sc(action, service)
-            msgs = [
-                {"role": "system", "content": _SYSTEM},
-                {"role": "user",   "content": _make_context(message, action, service, result)},
-            ]
-            return get_completion(msgs, self.complexity)
+            return _format_sc_result(action, service, _run_sc(action, service))
 
         return get_completion(self._build_messages(message, session_id), self.complexity)
 
@@ -157,24 +158,12 @@ class OpsAgent(BaseAgent):
 
         if action == "status":
             yield {"progress": "🔍 Consultando status dos serviços..."}
-            statuses = _query_all_status()
-            yield {"progress": _format_status(statuses).replace("\n", " | ")}
-            msgs = [
-                {"role": "system", "content": _SYSTEM},
-                {"role": "user",   "content": f"Pedido: {message}\n\n{_format_status(statuses)}"},
-            ]
-            yield from stream_completion(msgs, self.complexity)
+            yield _format_status(_query_all_status())
             return
 
         if action in ("start", "stop", "restart") and service:
             yield {"progress": f"⚙️ Executando: sc {action} {service}..."}
-            result = _run_sc(action, service)
-            yield {"progress": "✅ Concluído" if result["ok"] else "❌ Falhou"}
-            msgs = [
-                {"role": "system", "content": _SYSTEM},
-                {"role": "user",   "content": _make_context(message, action, service, result)},
-            ]
-            yield from stream_completion(msgs, self.complexity)
+            yield _format_sc_result(action, service, _run_sc(action, service))
             return
 
         yield from stream_completion(self._build_messages(message, session_id), self.complexity)
