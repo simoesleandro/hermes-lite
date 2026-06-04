@@ -45,25 +45,35 @@ _SYSTEM = (
 # ── sc helpers ────────────────────────────────────────────────────────────────
 
 def _run_sc(action: str, service: str) -> dict:
-    if action == "restart":
-        r1 = subprocess.run(["sc", "stop",  service], capture_output=True, text=True, timeout=15)
-        time.sleep(2)
-        r2 = subprocess.run(["sc", "start", service], capture_output=True, text=True, timeout=15)
-        return {
-            "ok":     r2.returncode == 0,
-            "stdout": f"[stop]  {r1.stdout.strip()}\n[start] {r2.stdout.strip()}",
-            "stderr": " | ".join(filter(None, [r1.stderr.strip(), r2.stderr.strip()])),
-        }
-    r = subprocess.run(["sc", action, service], capture_output=True, text=True, timeout=15)
-    return {"ok": r.returncode == 0, "stdout": r.stdout.strip(), "stderr": r.stderr.strip()}
+    try:
+        if action == "restart":
+            r1 = subprocess.run(["sc", "stop",  service], capture_output=True, text=True, timeout=10)
+            time.sleep(2)
+            r2 = subprocess.run(["sc", "start", service], capture_output=True, text=True, timeout=10)
+            return {
+                "ok":     r2.returncode == 0,
+                "stdout": f"[stop]  {r1.stdout.strip()}\n[start] {r2.stdout.strip()}",
+                "stderr": " | ".join(filter(None, [r1.stderr.strip(), r2.stderr.strip()])),
+            }
+        r = subprocess.run(["sc", action, service], capture_output=True, text=True, timeout=10)
+        return {"ok": r.returncode == 0, "stdout": r.stdout.strip(), "stderr": r.stderr.strip()}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "stdout": "", "stderr": f"timeout após 10s"}
+    except Exception as e:
+        return {"ok": False, "stdout": "", "stderr": str(e)}
 
 
 def _query_all_status() -> list[dict]:
     results = []
     for svc in _ALL_SERVICES:
-        r = subprocess.run(["sc", "query", svc], capture_output=True, text=True, timeout=10)
-        m = re.search(r'STATE\s*:\s*\d+\s+(\w+)', r.stdout)
-        state = m.group(1) if m else ("RUNNING" if r.returncode == 0 else "STOPPED")
+        try:
+            r = subprocess.run(["sc", "query", svc], capture_output=True, text=True, timeout=3)
+            m = re.search(r'STATE\s*:\s*\d+\s+(\w+)', r.stdout)
+            state = m.group(1) if m else ("RUNNING" if r.returncode == 0 else "STOPPED")
+        except subprocess.TimeoutExpired:
+            state = "TIMEOUT"
+        except Exception as e:
+            state = f"ERRO: {e}"
         results.append({"service": svc, "state": state})
     return results
 
@@ -71,8 +81,14 @@ def _query_all_status() -> list[dict]:
 def _format_status(statuses: list[dict]) -> str:
     lines = ["Serviços Windows:"]
     for s in statuses:
-        icon = "✅" if s["state"] == "RUNNING" else "❌"
-        lines.append(f"  {icon} {s['service']} — {s['state']}")
+        state = s["state"]
+        if state == "RUNNING":
+            icon = "✅"
+        elif state == "TIMEOUT":
+            icon = "❓"
+        else:
+            icon = "❌"
+        lines.append(f"  {icon} {s['service']} — {state}")
     return "\n".join(lines)
 
 
