@@ -8,3 +8,16 @@
 2026-06-03T17:23:41.933 INFO  service - Started process python (16624).
 2026-06-03T17:23:41.967 INFO  service - Service started successfully.
 2026-06-03T17:23:42.134 INFO  console - Service 'Hermes Vigia (hermes-vigia)' started successfully.
+2026-06-04T00:51:17.097 INFO  service - Stopping hermes-vigia
+2026-06-04T00:51:17.107 DEBUG service - ProcessKill 16624
+2026-06-04T00:51:17.156 INFO  service - Child process 'python (16624)' canceled with code -1073741510.
+2026-06-04T00:51:17.224 INFO  service - Finished hermes-vigia
+2026-06-04T00:51:17.236 INFO  service - Service was shut down successfully.
+2026-06-04T09:16:05.275 DEBUG console - Starting WinSW in service mode.
+2026-06-04T09:16:05.366 INFO  console - Service 'Hermes Vigia (hermes-vigia)' was refreshed successfully.
+2026-06-04T09:16:05.404 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T09:16:05.520 INFO  service - Started process python (8352).
+2026-06-04T09:16:05.559 INFO  service - Service started successfully.
+2026-06-04T18:18:23.932 INFO  console - Installing service 'Hermes Vigia (hermes-vigia)'...
+2026-06-04T18:18:23.967 ERROR console - A service with ID 'hermes-vigia' already exists.
+2026-06-04T18:18:23.972 FATAL console - Failed to install the service. O serviço especificado já existe.

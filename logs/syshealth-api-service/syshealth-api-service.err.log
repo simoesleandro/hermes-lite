@@ -1,0 +1,66 @@
+Traceback (most recent call last):
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py", line 13, in <module>
+    from db import query
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\db.py", line 6, in <module>
+    import pandas as pd
+  File "C:\Users\Leand\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\__init__.py", line 32, in <module>
+    raise ImportError(
+        "Unable to import required dependencies:\n" + "\n".join(_missing_dependencies)
+    )
+ImportError: Unable to import required dependencies:
+dateutil: No module named 'dateutil'
+Traceback (most recent call last):
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py", line 13, in <module>
+    from db import query
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\db.py", line 6, in <module>
+    import pandas as pd
+  File "C:\Users\Leand\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\__init__.py", line 32, in <module>
+    raise ImportError(
+        "Unable to import required dependencies:\n" + "\n".join(_missing_dependencies)
+    )
+ImportError: Unable to import required dependencies:
+dateutil: No module named 'dateutil'
+Traceback (most recent call last):
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py", line 13, in <module>
+    from db import query
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\db.py", line 6, in <module>
+    import pandas as pd
+  File "C:\Users\Leand\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\__init__.py", line 32, in <module>
+    raise ImportError(
+        "Unable to import required dependencies:\n" + "\n".join(_missing_dependencies)
+    )
+ImportError: Unable to import required dependencies:
+dateutil: No module named 'dateutil'
+Traceback (most recent call last):
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py", line 13, in <module>
+    from db import query
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\db.py", line 6, in <module>
+    import pandas as pd
+  File "C:\Users\Leand\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\__init__.py", line 32, in <module>
+    raise ImportError(
+        "Unable to import required dependencies:\n" + "\n".join(_missing_dependencies)
+    )
+ImportError: Unable to import required dependencies:
+dateutil: No module named 'dateutil'
+Traceback (most recent call last):
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py", line 13, in <module>
+    from db import query
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\db.py", line 6, in <module>
+    import pandas as pd
+  File "C:\Users\Leand\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\__init__.py", line 32, in <module>
+    raise ImportError(
+        "Unable to import required dependencies:\n" + "\n".join(_missing_dependencies)
+    )
+ImportError: Unable to import required dependencies:
+dateutil: No module named 'dateutil'
+Traceback (most recent call last):
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py", line 13, in <module>
+    from db import query
+  File "C:\Users\Leand\onedrive\desktop\projeto_fit\db.py", line 6, in <module>
+    import pandas as pd
+  File "C:\Users\Leand\AppData\Local\Programs\Python\Python313\Lib\site-packages\pandas\__init__.py", line 32, in <module>
+    raise ImportError(
+        "Unable to import required dependencies:\n" + "\n".join(_missing_dependencies)
+    )
+ImportError: Unable to import required dependencies:
+dateutil: No module named 'dateutil'

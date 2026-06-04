@@ -26,3 +26,12 @@ System.ComponentModel.Win32Exception (2): An error occurred trying to start proc
 2026-06-03T15:54:01.364 INFO  service - Started process python (20240).
 2026-06-03T15:54:01.396 INFO  service - Service started successfully.
 2026-06-03T15:54:01.563 INFO  console - Service 'Hermes Cronos Scheduler (HermesCronos)' started successfully.
+2026-06-04T00:51:17.099 INFO  service - Stopping HermesCronos
+2026-06-04T00:51:17.124 DEBUG service - ProcessKill 20240
+2026-06-04T00:51:17.212 INFO  service - Child process 'python (20240)' canceled with code -1073741510.
+2026-06-04T00:51:17.224 INFO  service - Finished HermesCronos
+2026-06-04T00:51:17.236 INFO  service - Service was shut down successfully.
+2026-06-04T09:16:05.262 DEBUG console - Starting WinSW in service mode.
+2026-06-04T09:16:05.369 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T09:16:05.499 INFO  service - Started process python (8344).
+2026-06-04T09:16:05.540 INFO  service - Service started successfully.
