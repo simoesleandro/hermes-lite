@@ -11,10 +11,18 @@ Gere código Python para responder a pergunta do usuário.
 
 Bases de dados disponíveis (variáveis já definidas no ambiente):
 - SENTINELA_DB: SQLite com contratos públicos do Rio de Janeiro
-  Tabelas: contratos(objeto, valor_global, data_assinatura,
-  fornecedor_ni, categoria_processo_nome),
-  alertas(tipo, severidade, descricao, valor_referencia),
-  fornecedores(ni, razao_social)
+  Tabelas:
+    contratos(id, orgao, fornecedor, objeto, valor_global,
+              data_assinatura, categoria_processo_nome, cnpj)
+    alertas(id, contrato_id, tipo, descricao, severidade)
+  ATENÇÃO: NÃO existe tabela "fornecedores".
+  Fornecedor é coluna TEXT dentro de contratos.
+  Exemplos corretos:
+    SELECT fornecedor, SUM(valor_global) AS total
+    FROM contratos GROUP BY fornecedor ORDER BY total DESC LIMIT 10;
+
+    SELECT * FROM alertas
+    WHERE severidade = 'alta' ORDER BY id DESC;
 
 - SYSHEALTH_DB: SQLite com dados de saúde pessoal
   Tabelas: refeicoes(calorias, proteinas, carboidratos, gorduras, data_hora),
