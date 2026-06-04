@@ -1,6 +1,7 @@
 import re
 import subprocess
 import time
+import urllib.request
 from typing import Generator
 from .base import BaseAgent
 from model_router import Complexity, get_completion, stream_completion
@@ -85,20 +86,31 @@ def _run_sc(action: str, service: str) -> dict:
         return {"ok": False, "stdout": "", "stderr": str(e)}
 
 
+def _check_syshealth_http() -> str:
+    try:
+        urllib.request.urlopen("http://localhost:5060/api/resumo", timeout=2)
+        return "RUNNING"
+    except Exception:
+        return "STOPPED"
+
+
 def _query_all_status() -> list[dict]:
     results = []
     for svc in _ALL_SERVICES:
-        sc_name = _SC_NAMES.get(svc, svc)
-        try:
-            r = subprocess.run(
-                ["powershell", "-Command", f'(Get-Service -Name "{sc_name}").Status'],
-                capture_output=True, text=True, timeout=5,
-            )
-            state = r.stdout.strip().upper() or ("STOPPED" if r.returncode != 0 else "UNKNOWN")
-        except subprocess.TimeoutExpired:
-            state = "TIMEOUT"
-        except Exception as e:
-            state = f"ERRO: {e}"
+        if svc == "HermesSysHealthAPI":
+            state = _check_syshealth_http()
+        else:
+            sc_name = _SC_NAMES.get(svc, svc)
+            try:
+                r = subprocess.run(
+                    ["powershell", "-Command", f'(Get-Service -Name "{sc_name}").Status'],
+                    capture_output=True, text=True, timeout=5,
+                )
+                state = r.stdout.strip().upper() or ("STOPPED" if r.returncode != 0 else "UNKNOWN")
+            except subprocess.TimeoutExpired:
+                state = "TIMEOUT"
+            except Exception as e:
+                state = f"ERRO: {e}"
         results.append({"service": svc, "state": state})
     return results
 
