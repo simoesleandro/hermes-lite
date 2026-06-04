@@ -4,7 +4,6 @@ import time
 from typing import Generator
 from .base import BaseAgent
 from model_router import Complexity, get_completion, stream_completion
-from db.database import Database
 
 _SERVICES = {
     "cronos":    "HermesCronos",
@@ -31,7 +30,8 @@ _ACT_RE = re.compile(
 )
 _SVC_RE    = re.compile(r'\b(cronos|vigia|syshealth|hermes)\b', re.I)
 _STATUS_RE = re.compile(
-    r'\b(status|estado|online|offline|rodando|ativo|parado|qual\s+servi|como\s+est[áa])\b',
+    r'\b(status|estado|online|offline|rodando|ativo|parado|funcionando|'
+    r'qual\s+servi|como\s+est[áa]|verificar|checar)\b',
     re.I,
 )
 
@@ -41,6 +41,8 @@ _SYSTEM = (
     "Seja direto e objetivo. Responda em português."
 )
 
+
+# ── sc helpers ────────────────────────────────────────────────────────────────
 
 def _run_sc(action: str, service: str) -> dict:
     if action == "restart":
@@ -62,7 +64,7 @@ def _query_all_status() -> list[dict]:
         r = subprocess.run(["sc", "query", svc], capture_output=True, text=True, timeout=10)
         m = re.search(r'STATE\s*:\s*\d+\s+(\w+)', r.stdout)
         state = m.group(1) if m else ("RUNNING" if r.returncode == 0 else "STOPPED")
-        results.append({"service": svc, "state": state, "ok": r.returncode == 0})
+        results.append({"service": svc, "state": state})
     return results
 
 
@@ -74,14 +76,31 @@ def _format_status(statuses: list[dict]) -> str:
     return "\n".join(lines)
 
 
+# ── intent parser ─────────────────────────────────────────────────────────────
+
 def _parse(message: str) -> tuple[str | None, str | None]:
-    if _STATUS_RE.search(message) and not _ACT_RE.search(message):
-        return "status", None
-    am = _ACT_RE.search(message)
+    """Return (intent, service).
+
+    intent values:
+      "status"                     → run sc query (service may be None = all)
+      "start" / "stop" / "restart" → run sc action on service
+      None                         → conversational fallback
+    """
+    has_action = bool(_ACT_RE.search(message))
+    has_status = bool(_STATUS_RE.search(message))
     sm = _SVC_RE.search(message)
-    action  = _ACTIONS.get(am.group(1).lower()) if am else None
     service = _SERVICES.get(sm.group(1).lower()) if sm else None
-    return action, service
+
+    if has_action:
+        am = _ACT_RE.search(message)
+        action = _ACTIONS[am.group(1).lower()]
+        return action, service  # service may be None → will ask for target
+
+    # No control verb: any mention of a service OR status keyword → status query
+    if has_status or service:
+        return "status", service  # service=None means show all
+
+    return None, None
 
 
 def _make_context(message: str, action: str, service: str, result: dict) -> str:
@@ -94,34 +113,44 @@ def _make_context(message: str, action: str, service: str, result: dict) -> str:
     )
 
 
+# ── agent ─────────────────────────────────────────────────────────────────────
+
 class OpsAgent(BaseAgent):
     name       = "ops"
     complexity = Complexity.SIMPLE
     system_prompt = _SYSTEM
 
-    def __init__(self, db: Database):
+    def __init__(self, db=None):
         super().__init__(db)
+
+    def _build_messages(self, message: str, session_id: str) -> list[dict]:
+        history = self.db.get_history_as_messages(self.name, session_id) if self.db else []
+        return (
+            [{"role": "system", "content": self.system_prompt}]
+            + history
+            + [{"role": "user", "content": message}]
+        )
 
     def process(self, message: str, session_id: str) -> str:
         action, service = _parse(message)
 
         if action == "status":
             statuses = _query_all_status()
-            messages = [
+            msgs = [
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user",   "content": f"Pedido: {message}\n\n{_format_status(statuses)}"},
             ]
-            return get_completion(messages, self.complexity)
+            return get_completion(msgs, self.complexity)
 
-        if not action or not service:
-            return get_completion(self._build_messages(message, session_id), self.complexity)
+        if action in ("start", "stop", "restart") and service:
+            result = _run_sc(action, service)
+            msgs = [
+                {"role": "system", "content": _SYSTEM},
+                {"role": "user",   "content": _make_context(message, action, service, result)},
+            ]
+            return get_completion(msgs, self.complexity)
 
-        result = _run_sc(action, service)
-        messages = [
-            {"role": "system", "content": _SYSTEM},
-            {"role": "user",   "content": _make_context(message, action, service, result)},
-        ]
-        return get_completion(messages, self.complexity)
+        return get_completion(self._build_messages(message, session_id), self.complexity)
 
     def stream(self, message: str, session_id: str) -> Generator:
         action, service = _parse(message)
@@ -130,23 +159,22 @@ class OpsAgent(BaseAgent):
             yield {"progress": "🔍 Consultando status dos serviços..."}
             statuses = _query_all_status()
             yield {"progress": _format_status(statuses).replace("\n", " | ")}
-            messages = [
+            msgs = [
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user",   "content": f"Pedido: {message}\n\n{_format_status(statuses)}"},
             ]
-            yield from stream_completion(messages, self.complexity)
+            yield from stream_completion(msgs, self.complexity)
             return
 
-        if not action or not service:
-            yield from stream_completion(self._build_messages(message, session_id), self.complexity)
+        if action in ("start", "stop", "restart") and service:
+            yield {"progress": f"⚙️ Executando: sc {action} {service}..."}
+            result = _run_sc(action, service)
+            yield {"progress": "✅ Concluído" if result["ok"] else "❌ Falhou"}
+            msgs = [
+                {"role": "system", "content": _SYSTEM},
+                {"role": "user",   "content": _make_context(message, action, service, result)},
+            ]
+            yield from stream_completion(msgs, self.complexity)
             return
 
-        yield {"progress": f"⚙️ Executando: sc {action} {service}..."}
-        result = _run_sc(action, service)
-        yield {"progress": "✅ Concluído" if result["ok"] else "❌ Falhou"}
-
-        messages = [
-            {"role": "system", "content": _SYSTEM},
-            {"role": "user",   "content": _make_context(message, action, service, result)},
-        ]
-        yield from stream_completion(messages, self.complexity)
+        yield from stream_completion(self._build_messages(message, session_id), self.complexity)
