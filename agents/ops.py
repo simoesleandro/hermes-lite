@@ -56,15 +56,28 @@ def _run_sc(action: str, service: str) -> dict:
     sc_name = _SC_NAMES.get(service, service)
     try:
         if action == "restart":
-            r1 = subprocess.run(["sc", "stop",  sc_name], capture_output=True, text=True, timeout=10)
+            r1 = subprocess.run(
+                ["powershell", "-Command", f'Stop-Service -Name "{sc_name}" -Force'],
+                capture_output=True, text=True, timeout=10,
+            )
             time.sleep(2)
-            r2 = subprocess.run(["sc", "start", sc_name], capture_output=True, text=True, timeout=10)
+            r2 = subprocess.run(
+                ["powershell", "-Command", f'Start-Service -Name "{sc_name}"'],
+                capture_output=True, text=True, timeout=10,
+            )
             return {
                 "ok":     r2.returncode == 0,
                 "stdout": f"[stop]  {r1.stdout.strip()}\n[start] {r2.stdout.strip()}",
                 "stderr": " | ".join(filter(None, [r1.stderr.strip(), r2.stderr.strip()])),
             }
-        r = subprocess.run(["sc", action, sc_name], capture_output=True, text=True, timeout=10)
+        ps_cmd = (
+            f'Start-Service -Name "{sc_name}"' if action == "start"
+            else f'Stop-Service -Name "{sc_name}" -Force'
+        )
+        r = subprocess.run(
+            ["powershell", "-Command", ps_cmd],
+            capture_output=True, text=True, timeout=10,
+        )
         return {"ok": r.returncode == 0, "stdout": r.stdout.strip(), "stderr": r.stderr.strip()}
     except subprocess.TimeoutExpired:
         return {"ok": False, "stdout": "", "stderr": "timeout após 10s"}
@@ -77,9 +90,11 @@ def _query_all_status() -> list[dict]:
     for svc in _ALL_SERVICES:
         sc_name = _SC_NAMES.get(svc, svc)
         try:
-            r = subprocess.run(["sc", "query", sc_name], capture_output=True, text=True, timeout=3)
-            m = re.search(r'STATE\s*:\s*\d+\s+(\w+)', r.stdout)
-            state = m.group(1) if m else ("RUNNING" if r.returncode == 0 else "STOPPED")
+            r = subprocess.run(
+                ["powershell", "-Command", f'(Get-Service -Name "{sc_name}").Status'],
+                capture_output=True, text=True, timeout=5,
+            )
+            state = r.stdout.strip().upper() or ("STOPPED" if r.returncode != 0 else "UNKNOWN")
         except subprocess.TimeoutExpired:
             state = "TIMEOUT"
         except Exception as e:
