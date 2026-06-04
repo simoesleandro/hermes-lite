@@ -2,10 +2,27 @@
   <id>HermesSysHealthAPI</id>
   <name>Hermes SysHealth API</name>
   <description>SysHealth API server na porta 5060</description>
+
   <executable>C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe</executable>
   <arguments>C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py</arguments>
-  <logpath>logs/syshealth-api-service</logpath>
+  <workingdirectory>C:\Users\Leand\onedrive\desktop\projeto_fit</workingdirectory>
+
+  <serviceaccount>
+    <username>LocalSystem</username>
+  </serviceaccount>
+
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="1 min"/>
+  <onfailure action="none"/>
+
   <logmode>rotate</logmode>
+  <logpath>%BASE%\logs\syshealth-api-service</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+
   <env name="PYTHONUNBUFFERED" value="1"/>
   <env name="PYTHONIOENCODING" value="utf-8"/>
 </service>
