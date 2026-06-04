@@ -9,6 +9,7 @@ let currentAgent = "conhecimento";
 const sessionId = crypto.randomUUID();
 const attachBtn = document.getElementById("attachBtn");
 const pdfInput  = document.getElementById("pdfInput");
+const stopBtn   = document.getElementById("stop-btn");
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -171,6 +172,8 @@ form.addEventListener("submit", async (e) => {
   appendMessage("user", message, "Você");
   input.value = "";
   sendBtn.disabled = true;
+  sendBtn.style.display = "none";
+  stopBtn.style.display = "flex";
 
   // Snapshot agent in case user switches tabs mid-stream
   const agentSnap = currentAgent;
@@ -203,8 +206,11 @@ form.addEventListener("submit", async (e) => {
   const es = new EventSource(`/chat/stream?${params}`);
 
   let progressSteps = null;
+  let finalized = false;
 
   function finalize(provider = null) {
+    if (finalized) return;
+    finalized = true;
     bubble.classList.remove("streaming");
     if (body.textContent) {
       body.innerHTML = marked.parse(body.textContent);
@@ -219,9 +225,19 @@ form.addEventListener("submit", async (e) => {
       meta.appendChild(badge);
     }
     es.close();
+    stopBtn.style.display = "none";
+    sendBtn.style.display = "flex";
     sendBtn.disabled = false;
+    stopBtn.removeEventListener("click", handleStop);
     input.focus();
   }
+
+  function handleStop() {
+    finalize();
+    appendSystemMessage("Geração interrompida");
+  }
+
+  stopBtn.addEventListener("click", handleStop);
 
   es.onmessage = (event) => {
     const data = JSON.parse(event.data);
