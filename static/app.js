@@ -299,11 +299,27 @@ form.addEventListener("submit", async (e) => {
   let streamDone    = false;
   let providerRef   = null;
 
+  function _renderB64Images(container) {
+    container.querySelectorAll("p, pre, code").forEach((el) => {
+      const raw = el.textContent.replace(/\s/g, "");
+      if (raw.length > 200 && /^[A-Za-z0-9+\/=]+$/.test(raw)) {
+        const img = document.createElement("img");
+        img.src = raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
+        img.classList.add("chart-output");
+        img.alt = "Gráfico gerado pelo Analista";
+        el.replaceWith(img);
+      }
+    });
+  }
+
   function finalizeUI(provider) {
     if (finalized) return;
     finalized = true;
     bubble.classList.remove("streaming");
-    if (body.textContent) body.innerHTML = marked.parse(body.textContent);
+    if (body.textContent) {
+      body.innerHTML = marked.parse(body.textContent);
+      _renderB64Images(body);
+    }
 
     const timeSpan = document.createElement("span");
     timeSpan.textContent = `${meta.label} · ${nowTime()}`;

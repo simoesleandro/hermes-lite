@@ -41,8 +41,9 @@ Libs disponíveis: pandas, numpy, matplotlib, seaborn, sqlite3,
 json, datetime, math, statistics, collections, itertools, re, csv
 
 Para gráficos: use matplotlib ou seaborn.
-Ao final SEMPRE chame: chart_b64 = save_chart()
-e imprima: print(chart_b64)
+Crie o gráfico normalmente (plt.figure, plt.bar, plt.plot, etc.) —
+o ambiente captura automaticamente ao final.
+NÃO chame save_chart() nem imprima strings base64.
 
 Para dados tabulares: use print() com formatação clara.
 
@@ -85,10 +86,13 @@ class AnalistaAgent(BaseAgent):
         return _strip_fences(raw)
 
     def _build_interpret_messages(self, message: str, code: str, result: dict) -> list[dict]:
+        output = re.sub(r'[A-Za-z0-9+/]{100,}={0,2}', '[dado binário omitido]', result.get('output', ''))
+        chart_note = "Sim (imagem capturada e exibida)" if result.get('chart_b64') else "Não"
         user_content = (
             f"Pergunta original: {message}\n\n"
             f"Código executado:\n```python\n{code[:2000]}\n```\n\n"
-            f"Output:\n{result.get('output', '')[:3000]}\n\n"
+            f"Output:\n{output[:1500]}\n\n"
+            f"Gráfico gerado: {chart_note}\n\n"
             f"Erro: {result.get('error') or 'Nenhum'}"
         )
         return [
