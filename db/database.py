@@ -19,26 +19,48 @@ class Database:
         with self._connect() as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS messages (
-                    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                    agent      TEXT    NOT NULL,
-                    role       TEXT    NOT NULL CHECK(role IN ('user', 'assistant')),
-                    content    TEXT    NOT NULL,
-                    timestamp  TEXT    NOT NULL,
-                    session_id TEXT
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    agent           TEXT    NOT NULL,
+                    role            TEXT    NOT NULL CHECK(role IN ('user', 'assistant')),
+                    content         TEXT    NOT NULL,
+                    timestamp       TEXT    NOT NULL,
+                    session_id      TEXT,
+                    conversation_id TEXT REFERENCES conversations(id)
                 )
             """)
-            # Aditiva: adiciona session_id em bancos existentes sem a coluna
-            try:
-                conn.execute("ALTER TABLE messages ADD COLUMN session_id TEXT")
-            except Exception:
-                pass
+            # Additive migrations for existing databases
+            for col, definition in [
+                ("session_id",      "TEXT"),
+                ("conversation_id", "TEXT REFERENCES conversations(id)"),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE messages ADD COLUMN {col} {definition}")
+                except Exception:
+                    pass
+
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id         TEXT PRIMARY KEY,
+                    title      TEXT NOT NULL,
+                    agent      TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+            """)
             conn.commit()
 
-    def save_message(self, agent: str, role: str, content: str, session_id: str):
+    def save_message(
+        self,
+        agent: str,
+        role: str,
+        content: str,
+        session_id: str,
+        conversation_id: str = None,
+    ):
         with self._connect() as conn:
             conn.execute(
-                "INSERT INTO messages (agent, role, content, timestamp, session_id) VALUES (?, ?, ?, ?, ?)",
-                (agent, role, content, datetime.utcnow().isoformat(), session_id),
+                "INSERT INTO messages (agent, role, content, timestamp, session_id, conversation_id) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (agent, role, content, datetime.utcnow().isoformat(), session_id, conversation_id),
             )
             conn.commit()
 
@@ -68,3 +90,36 @@ class Database:
             )
             conn.commit()
         return cursor.rowcount
+
+    def create_conversation(self, id: str, title: str, agent: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO conversations (id, title, agent, created_at) VALUES (?, ?, ?, ?)",
+                (id, title[:40], agent, datetime.utcnow().isoformat()),
+            )
+            conn.commit()
+
+    def get_conversations(self, limit: int = 50) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT c.id, c.title, c.agent, c.created_at,
+                       COUNT(m.id) AS msg_count
+                FROM conversations c
+                LEFT JOIN messages m ON m.conversation_id = c.id
+                GROUP BY c.id
+                ORDER BY c.created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_conversation_messages(self, conv_id: str) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT role, content, timestamp FROM messages "
+                "WHERE conversation_id = ? ORDER BY id ASC",
+                (conv_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]

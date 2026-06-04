@@ -1,19 +1,71 @@
-const chatInner = document.getElementById("chat-inner");
-const chatArea  = document.getElementById("chat-area");
-const form      = document.getElementById("chat-form");
-const input     = document.getElementById("message-input");
-const sendBtn   = document.getElementById("send-btn");
-const agentLabel = document.getElementById("current-agent-label");
+// ── Agent metadata ────────────────────────────────────
+const AGENT_META = {
+  conhecimento:    { icon: "🧠", label: "Conhecimento" },
+  desenvolvimento: { icon: "💻", label: "Desenvolvimento" },
+  saude:           { icon: "💚", label: "Saúde" },
+  treino:          { icon: "🏋️", label: "Treino" },
+  produtividade:   { icon: "⚡", label: "Produtividade" },
+  sentinela:       { icon: "🔍", label: "Sentinela" },
+  juridico:        { icon: "⚖️", label: "Jurídico" },
+  investigador:    { icon: "🕵️", label: "Investigador" },
+  leitor:          { icon: "📄", label: "Leitor" },
+  analista:        { icon: "📊", label: "Analista" },
+};
 
-let currentAgent = "conhecimento";
+const STATUS_MSG = {
+  conhecimento:    "🧠 Conhecimento está pensando...",
+  desenvolvimento: "💻 Dev está analisando seu código...",
+  saude:           "💚 Saúde está consultando seus dados...",
+  treino:          "🏋️ Treino está calculando sua performance...",
+  produtividade:   "⚡ Produtividade está organizando...",
+  sentinela:       "🔍 Sentinela está varrendo os dados...",
+  juridico:        "⚖️ Jurídico está consultando a legislação...",
+  investigador:    "🕵️ Investigador está pesquisando...",
+  leitor:          "📄 Leitor está processando o documento...",
+  analista:        "📊 Analista está preparando o gráfico...",
+};
+
+// ── Global state ──────────────────────────────────────
+const state = {
+  currentAgent:  "conhecimento",
+  agentLocked:   false,
+  currentConvId: null,
+  isStreaming:   false,
+};
 const sessionId = crypto.randomUUID();
-const attachBtn = document.getElementById("attachBtn");
-const pdfInput  = document.getElementById("pdfInput");
-const stopBtn   = document.getElementById("stop-btn");
+
+// ── DOM refs ──────────────────────────────────────────
+const app             = document.getElementById("app");
+const chatArea        = document.getElementById("chat-area");
+const chatInner       = document.getElementById("chat-inner");
+const form            = document.getElementById("chat-form");
+const input           = document.getElementById("message-input");
+const sendBtn         = document.getElementById("send-btn");
+const stopBtn         = document.getElementById("stop-btn");
+const attachBtn       = document.getElementById("attachBtn");
+const pdfInput        = document.getElementById("pdfInput");
+const agentBadge      = document.getElementById("agent-badge");
+const agentBadgeIcon  = document.getElementById("agent-badge-icon");
+const agentBadgeLabel = document.getElementById("agent-badge-label");
+const agentDropdown   = document.getElementById("agent-dropdown");
+const agentStatus     = document.getElementById("agent-status");
 
 marked.setOptions({ breaks: true, gfm: true });
 
-// ── Provider status dots ──────────────────────────────────────
+// ── Textarea auto-expand ──────────────────────────────
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 160) + "px";
+});
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (!state.isStreaming) form.requestSubmit();
+  }
+});
+
+// ── Provider status dots ──────────────────────────────
 const _statusDots = {
   groq:   document.getElementById("dot-groq"),
   gemini: document.getElementById("dot-gemini"),
@@ -32,36 +84,142 @@ async function fetchStatus() {
     for (const [name, dot] of Object.entries(_statusDots)) {
       const info = providers[name];
       if (!info) continue;
-      const online  = info.status === "online";
-      dot.className = `status-dot ${online ? "online" : "offline"}`;
-      const lat     = info.latency_ms != null ? ` · ${info.latency_ms}ms` : "";
-      dot.title     = `${name}: ${info.status}${lat}`;
+      dot.className = `status-dot ${info.status === "online" ? "online" : "offline"}`;
+      const lat = info.latency_ms != null ? ` · ${info.latency_ms}ms` : "";
+      dot.title = `${name}: ${info.status}${lat}`;
     }
   } catch {
     Object.values(_statusDots).forEach((d) => {
       d.className = "status-dot offline";
-      d.title     = `${d.dataset.provider}: erro`;
+      d.title = `${d.dataset.provider}: erro`;
     });
   }
 }
-
 fetchStatus();
 setInterval(fetchStatus, 30000);
 
-// ── Agent tab switching ───────────────────────────────────────
-document.querySelectorAll(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
-    tab.classList.add("active");
-    currentAgent = tab.dataset.agent;
-    agentLabel.textContent = tab.textContent.trim();
-    const isLeitor = currentAgent === "leitor";
-    attachBtn.style.display = isLeitor ? "flex" : "none";
-    form.classList.toggle("has-attach", isLeitor);
+// ── Badge ─────────────────────────────────────────────
+function updateBadge(agentKey) {
+  const meta = AGENT_META[agentKey] || AGENT_META.conhecimento;
+  state.currentAgent        = agentKey;
+  agentBadgeIcon.textContent  = meta.icon;
+  agentBadgeLabel.textContent = meta.label;
+  attachBtn.style.display = agentKey === "leitor" ? "flex" : "none";
+}
+
+// ── Agent dropdown ────────────────────────────────────
+Object.entries(AGENT_META).forEach(([key, meta]) => {
+  const btn = document.createElement("button");
+  btn.classList.add("agent-option");
+  btn.dataset.agent = key;
+  btn.innerHTML = `<span>${meta.icon}</span><span>${meta.label}</span>`;
+  btn.addEventListener("click", () => {
+    updateBadge(key);
+    agentDropdown.setAttribute("hidden", "");
   });
+  agentDropdown.appendChild(btn);
 });
 
-// ── PDF upload ────────────────────────────────────────────────
+agentBadge.addEventListener("click", () => {
+  if (state.agentLocked) return;
+  const isHidden = agentDropdown.hasAttribute("hidden");
+  if (isHidden) {
+    agentDropdown.removeAttribute("hidden");
+    agentDropdown.querySelectorAll(".agent-option").forEach((b) => {
+      b.classList.toggle("current", b.dataset.agent === state.currentAgent);
+    });
+  } else {
+    agentDropdown.setAttribute("hidden", "");
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (!agentBadge.contains(e.target) && !agentDropdown.contains(e.target)) {
+    agentDropdown.setAttribute("hidden", "");
+  }
+});
+
+// ── Keyup → classify (wired in Stage 2, stub here) ───
+let _classifyTimer = null;
+
+input.addEventListener("keyup", () => {
+  if (state.agentLocked) return;
+  clearTimeout(_classifyTimer);
+  const q = input.value.trim();
+  if (!q) return;
+  _classifyTimer = setTimeout(async () => {
+    try {
+      const res  = await fetch(`/chat/classify?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      if (!state.agentLocked) updateBadge(data.agent);
+    } catch { /* ignore */ }
+  }, 300);
+});
+
+// ── Helpers ───────────────────────────────────────────
+function scrollToBottom() {
+  chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: "smooth" });
+}
+
+function nowTime() {
+  return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function removeWelcome() {
+  const w = document.getElementById("welcome");
+  if (w) w.remove();
+  app.classList.remove("layout-empty");
+}
+
+function appendMessage(role, text, agentKey) {
+  removeWelcome();
+  const meta = AGENT_META[agentKey] || AGENT_META.conhecimento;
+
+  const row = document.createElement("div");
+  row.classList.add("msg-row", role);
+
+  const avatar = document.createElement("div");
+  avatar.classList.add("avatar");
+  avatar.textContent = role === "user" ? "U" : meta.icon;
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("bubble");
+
+  const body = document.createElement("div");
+  body.classList.add("bubble-body");
+  if (role === "assistant") {
+    body.innerHTML = marked.parse(text);
+  } else {
+    body.textContent = text;
+  }
+
+  const bubbleMeta = document.createElement("div");
+  bubbleMeta.classList.add("bubble-meta");
+  bubbleMeta.textContent = role === "user" ? nowTime() : `${meta.label} · ${nowTime()}`;
+
+  bubble.appendChild(body);
+  bubble.appendChild(bubbleMeta);
+  row.appendChild(avatar);
+  row.appendChild(bubble);
+  chatInner.appendChild(row);
+  scrollToBottom();
+  return row;
+}
+
+function appendSystemMessage(text) {
+  removeWelcome();
+  const el = document.createElement("div");
+  el.classList.add("system-msg");
+  el.textContent = `— ${text} —`;
+  chatInner.appendChild(el);
+  scrollToBottom();
+}
+
+// ── PDF upload ────────────────────────────────────────
 attachBtn.addEventListener("click", () => pdfInput.click());
 
 pdfInput.addEventListener("change", async () => {
@@ -81,9 +239,7 @@ pdfInput.addEventListener("change", async () => {
       appendSystemMessage(
         `📄 ${data.filename} carregado (${data.pages} páginas · ${data.chars.toLocaleString("pt-BR")} caracteres)`
       );
-      if (data.truncated) {
-        appendSystemMessage("⚠️ Documento grande — analisando primeiras 20 + últimas 5 páginas");
-      }
+      if (data.truncated) appendSystemMessage("⚠️ Documento grande — analisando primeiras 20 + últimas 5 páginas");
     } else {
       appendSystemMessage(`❌ Erro: ${data.error}`);
     }
@@ -92,99 +248,68 @@ pdfInput.addEventListener("change", async () => {
   }
 });
 
-// ── Helpers ───────────────────────────────────────────────────
-function scrollToBottom() {
-  chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: "smooth" });
-}
-
-function nowTime() {
-  return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function removeWelcome() {
-  const w = chatInner.querySelector(".welcome");
-  if (w) w.remove();
-}
-
-function appendMessage(role, text, agentName) {
-  removeWelcome();
-
-  const row = document.createElement("div");
-  row.classList.add("msg-row", role);
-
-  const avatar = document.createElement("div");
-  avatar.classList.add("avatar");
-  avatar.textContent = role === "user" ? "U" : agentName[0].toUpperCase();
-
-  const bubble = document.createElement("div");
-  bubble.classList.add("bubble");
-
-  const body = document.createElement("div");
-  body.textContent = text;
-
-  const meta = document.createElement("div");
-  meta.classList.add("bubble-meta");
-  meta.textContent = role === "user" ? nowTime() : `${agentName} · ${nowTime()}`;
-
-  bubble.appendChild(body);
-  bubble.appendChild(meta);
-  row.appendChild(avatar);
-  row.appendChild(bubble);
-  chatInner.appendChild(row);
-  scrollToBottom();
-  return row;
-}
-
-// ── System message ────────────────────────────────────────────
-function appendSystemMessage(text) {
-  removeWelcome();
-  const el = document.createElement("div");
-  el.classList.add("system-msg");
-  el.textContent = `— ${text} —`;
-  chatInner.appendChild(el);
-  scrollToBottom();
-}
-
-// ── Submit ────────────────────────────────────────────────────
+// ── Submit ────────────────────────────────────────────
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const message = input.value.trim();
-  if (!message) return;
+  if (!message || state.isStreaming) return;
 
-  // ── /limpar command ──────────────────────────────────────────
   if (message === "/limpar") {
     input.value = "";
+    input.style.height = "auto";
     try {
       await fetch("/chat/clear", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent: currentAgent, session_id: sessionId }),
+        body: JSON.stringify({ agent: state.currentAgent, session_id: sessionId }),
       });
-    } catch {
-      // best-effort: clear UI regardless of network result
-    }
+    } catch { /* best-effort */ }
     chatInner.innerHTML = "";
     appendSystemMessage("Histórico limpo");
     input.focus();
     return;
   }
 
-  appendMessage("user", message, "Você");
+  if (!state.agentLocked) {
+    state.agentLocked = true;
+    agentBadge.classList.add("locked");
+  }
+
+  // Create conversation on first message (Stage 4 populates sidebar after response)
+  if (!state.currentConvId) {
+    state.currentConvId = crypto.randomUUID();
+    fetch("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id:    state.currentConvId,
+        title: message.slice(0, 40),
+        agent: state.currentAgent,
+      }),
+    }).catch(() => { /* best-effort */ });
+  }
+
+  appendMessage("user", message, state.currentAgent);
   input.value = "";
+  input.style.height = "auto";
+  state.isStreaming = true;
   sendBtn.disabled = true;
   sendBtn.style.display = "none";
   stopBtn.style.display = "flex";
 
-  // Snapshot agent in case user switches tabs mid-stream
-  const agentSnap = currentAgent;
+  agentStatus.textContent = STATUS_MSG[state.currentAgent] || "Pensando...";
+  agentStatus.removeAttribute("hidden");
 
-  // Build streaming bubble upfront
+  const agentSnap = state.currentAgent;
+  const meta      = AGENT_META[agentSnap];
+
+  // Build streaming bubble
   const row = document.createElement("div");
   row.classList.add("msg-row", "assistant");
 
   const avatar = document.createElement("div");
   avatar.classList.add("avatar");
-  avatar.textContent = agentSnap[0].toUpperCase();
+  avatar.textContent = meta.icon;
 
   const bubble = document.createElement("div");
   bubble.classList.add("bubble", "streaming");
@@ -192,59 +317,93 @@ form.addEventListener("submit", async (e) => {
   const body = document.createElement("div");
   body.classList.add("bubble-body");
 
-  const meta = document.createElement("div");
-  meta.classList.add("bubble-meta");
+  const bubbleMeta = document.createElement("div");
+  bubbleMeta.classList.add("bubble-meta");
 
   bubble.appendChild(body);
-  bubble.appendChild(meta);
+  bubble.appendChild(bubbleMeta);
   row.appendChild(avatar);
   row.appendChild(bubble);
   chatInner.appendChild(row);
   scrollToBottom();
 
-  const params = new URLSearchParams({ message, agent: agentSnap, session_id: sessionId });
-  const es = new EventSource(`/chat/stream?${params}`);
-
   let progressSteps = null;
-  let finalized = false;
+  let finalized     = false;
+  let tokenBuffer   = [];
+  let streamDone    = false;
+  let providerRef   = null;
 
-  function finalize(provider = null) {
+  function finalizeUI(provider) {
     if (finalized) return;
     finalized = true;
     bubble.classList.remove("streaming");
-    if (body.textContent) {
-      body.innerHTML = marked.parse(body.textContent);
-    }
+    if (body.textContent) body.innerHTML = marked.parse(body.textContent);
+
     const timeSpan = document.createElement("span");
-    timeSpan.textContent = `${agentSnap} · ${nowTime()}`;
-    meta.appendChild(timeSpan);
-    if (provider) {
+    timeSpan.textContent = `${meta.label} · ${nowTime()}`;
+    bubbleMeta.appendChild(timeSpan);
+
+    if (provider && provider !== "unknown") {
       const badge = document.createElement("span");
       badge.classList.add("provider-badge", `provider-${provider}`);
       badge.textContent = provider;
-      meta.appendChild(badge);
+      bubbleMeta.appendChild(badge);
     }
-    es.close();
+
+    if (progressSteps) {
+      setTimeout(() => {
+        progressSteps.style.transition = "opacity 0.5s";
+        progressSteps.style.opacity    = "0";
+        setTimeout(() => progressSteps && progressSteps.remove(), 500);
+      }, 1500);
+    }
+
+    state.isStreaming = false;
+    agentStatus.setAttribute("hidden", "");
     stopBtn.style.display = "none";
     sendBtn.style.display = "flex";
-    sendBtn.disabled = false;
+    sendBtn.disabled      = false;
     stopBtn.removeEventListener("click", handleStop);
     input.focus();
+
+    if (typeof loadConversations === "function") loadConversations();
   }
+
+  // Drain buffer at 12ms per token
+  function drainBuffer() {
+    if (tokenBuffer.length) {
+      body.textContent += tokenBuffer.shift();
+      scrollToBottom();
+      setTimeout(drainBuffer, 12);
+    } else if (!streamDone) {
+      setTimeout(drainBuffer, 12);
+    } else {
+      finalizeUI(providerRef);
+    }
+  }
+  drainBuffer();
 
   function handleStop() {
-    finalize();
+    streamDone = true;
+    tokenBuffer = [];
+    if (es) es.close();
+    finalizeUI(null);
     appendSystemMessage("Geração interrompida");
   }
-
   stopBtn.addEventListener("click", handleStop);
+
+  const params = new URLSearchParams({ message, agent: agentSnap, session_id: sessionId });
+  if (state.currentConvId) params.set("conv_id", state.currentConvId);
+  const es = new EventSource(`/chat/stream?${params}`);
 
   es.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
     if (data.error) {
+      tokenBuffer = [];
       body.textContent = `Erro: ${data.error}`;
-      finalize();
+      streamDone = true;
+      finalizeUI(null);
       return;
     }
 
@@ -263,36 +422,133 @@ form.addEventListener("submit", async (e) => {
 
     if (data.chart) {
       const img = document.createElement("img");
-      img.src = `data:image/png;base64,${data.chart}`;
+      img.src   = `data:image/png;base64,${data.chart}`;
       img.classList.add("chart-output");
-      img.alt = "Gráfico gerado pelo Analista";
+      img.alt   = "Gráfico gerado pelo Analista";
       bubble.insertBefore(img, body);
       scrollToBottom();
     }
 
     if (data.token) {
-      body.textContent += data.token;
-      scrollToBottom();
+      tokenBuffer.push(data.token);
     }
 
     if (data.done) {
-      if (progressSteps) {
-        setTimeout(() => {
-          progressSteps.style.transition = "opacity 0.5s";
-          progressSteps.style.opacity = "0";
-          setTimeout(() => progressSteps && progressSteps.remove(), 500);
-        }, 2000);
-      }
-      finalize(data.provider);
+      providerRef = data.provider;
+      streamDone  = true;
+      es.close();
+      // Force flush 2s after stream ends if buffer hasn't drained
+      setTimeout(() => {
+        if (tokenBuffer.length) {
+          body.textContent += tokenBuffer.join("");
+          tokenBuffer = [];
+        }
+        finalizeUI(providerRef);
+      }, 2000);
     }
   };
 
   es.onerror = () => {
-    if (!body.textContent) {
+    if (!body.textContent && !tokenBuffer.length) {
       body.textContent = "Erro de conexão com o servidor.";
     }
-    finalize();
+    streamDone = true;
+    tokenBuffer = [];
+    finalizeUI(null);
   };
 });
 
+// ── Conversation management ───────────────────────────
+async function loadConversations() {
+  try {
+    const res  = await fetch("/api/conversations");
+    const data = await res.json();
+    renderConvList(data.groups || {});
+  } catch { /* ignore */ }
+}
+
+function renderConvList(groups) {
+  const list = document.getElementById("conv-list");
+  list.innerHTML = "";
+
+  for (const [label, convs] of Object.entries(groups)) {
+    if (!convs.length) continue;
+
+    const groupEl = document.createElement("div");
+    groupEl.classList.add("conv-group-label");
+    groupEl.textContent = label;
+    list.appendChild(groupEl);
+
+    for (const conv of convs) {
+      const item = document.createElement("div");
+      item.classList.add("conv-item");
+      if (conv.id === state.currentConvId) item.classList.add("active");
+      item.dataset.convId = conv.id;
+
+      const iconEl = document.createElement("span");
+      iconEl.classList.add("conv-item-icon");
+      iconEl.textContent = (AGENT_META[conv.agent] || AGENT_META.conhecimento).icon;
+
+      const titleEl = document.createElement("span");
+      titleEl.classList.add("conv-item-title");
+      titleEl.textContent = conv.title;
+
+      item.appendChild(iconEl);
+      item.appendChild(titleEl);
+      item.addEventListener("click", () => loadConversation(conv.id, conv.agent));
+      list.appendChild(item);
+    }
+  }
+}
+
+async function loadConversation(convId, agent) {
+  if (state.isStreaming) return;
+
+  state.currentConvId = convId;
+  state.agentLocked   = true;
+  updateBadge(agent);
+  agentBadge.classList.add("locked");
+
+  chatInner.innerHTML = "";
+  app.classList.remove("layout-empty");
+
+  document.querySelectorAll(".conv-item").forEach((el) => {
+    el.classList.toggle("active", el.dataset.convId === convId);
+  });
+
+  try {
+    const res  = await fetch(`/api/conversations/${convId}`);
+    const data = await res.json();
+    for (const msg of data.messages) {
+      appendMessage(msg.role === "user" ? "user" : "assistant", msg.content, agent);
+    }
+  } catch {
+    appendSystemMessage("Erro ao carregar conversa");
+  }
+
+  input.focus();
+}
+
+function newConversation() {
+  if (state.isStreaming) return;
+
+  state.currentConvId = null;
+  state.currentAgent  = "conhecimento";
+  state.agentLocked   = false;
+
+  chatInner.innerHTML = `<div class="welcome" id="welcome"><p class="welcome-title">Como posso ajudar?</p></div>`;
+  app.classList.add("layout-empty");
+
+  updateBadge("conhecimento");
+  agentBadge.classList.remove("locked");
+
+  document.querySelectorAll(".conv-item").forEach((el) => el.classList.remove("active"));
+  input.focus();
+}
+
+document.getElementById("new-conv-btn").addEventListener("click", newConversation);
+
+// ── Init ──────────────────────────────────────────────
+updateBadge("conhecimento");
+loadConversations();
 input.focus();

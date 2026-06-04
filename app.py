@@ -1,10 +1,11 @@
 import json
 import os
+import re
 import time
 import urllib.request
 import uuid
 from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Flask, Response, request, jsonify, send_from_directory, stream_with_context
 from dotenv import load_dotenv
 from agents.saude import SaudeAgent
@@ -23,6 +24,27 @@ load_dotenv()
 
 app = Flask(__name__, static_folder="static")
 db = Database()
+
+# ── Agent auto-routing ────────────────────────────────────────────────────────
+
+_RULES = [
+    (re.compile(r"bebi|água|peso|hrv|sono|calorias|hidrat", re.I), "saude"),
+    (re.compile(r"treino|muscula|corrida|ppl|série|repetição|supino", re.I), "treino"),
+    (re.compile(r"código|bug|python|refator|arquitetura|função|classe", re.I), "desenvolvimento"),
+    (re.compile(r"contrato público|pncp|licitação|anomalia|dispensa", re.I), "sentinela"),
+    (re.compile(r"lei|contrato|jurídico|processo|cláusula|advogado", re.I), "juridico"),
+    (re.compile(r"pesquis|investig|buscar na web|notícia", re.I), "investigador"),
+    (re.compile(r"pdf|documento|resumir arquivo|anexo", re.I), "leitor"),
+    (re.compile(r"gráfico|analisar dados|visualizar|dashboard|planilha", re.I), "analista"),
+    (re.compile(r"tarefa|agenda|lembrete|produtividade|organizar", re.I), "produtividade"),
+]
+
+
+def classify_agent(message: str) -> str:
+    for pattern, agent in _RULES:
+        if pattern.search(message):
+            return agent
+    return "conhecimento"
 
 _PDF_SESSIONS: dict = {}
 _PDF_MAX_SESSIONS = 50
@@ -44,6 +66,52 @@ AGENTS = {
 @app.route("/")
 def index():
     return send_from_directory("static", "index.html")
+
+
+@app.route("/chat/classify")
+def chat_classify():
+    q = request.args.get("q", "").strip()
+    return jsonify({"agent": classify_agent(q)})
+
+
+@app.route("/api/conversations", methods=["POST"])
+def create_conversation_route():
+    data    = request.get_json(force=True)
+    conv_id = data.get("id", "").strip()
+    title   = data.get("title", "").strip()
+    agent   = data.get("agent", "conhecimento").lower()
+    if not conv_id or not title:
+        return jsonify({"error": "id e title são obrigatórios"}), 400
+    db.create_conversation(conv_id, title, agent)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/conversations")
+def list_conversations_route():
+    convs     = db.get_conversations(limit=50)
+    today     = datetime.utcnow().date()
+    yesterday = today - timedelta(days=1)
+    week_ago  = today - timedelta(days=7)
+
+    groups: dict = {"Hoje": [], "Ontem": [], "Últimos 7 dias": [], "Mais antigo": []}
+    for c in convs:
+        d = datetime.fromisoformat(c["created_at"]).date()
+        if d == today:
+            groups["Hoje"].append(c)
+        elif d == yesterday:
+            groups["Ontem"].append(c)
+        elif d >= week_ago:
+            groups["Últimos 7 dias"].append(c)
+        else:
+            groups["Mais antigo"].append(c)
+
+    return jsonify({"groups": {k: v for k, v in groups.items() if v}})
+
+
+@app.route("/api/conversations/<conv_id>")
+def get_conversation_route(conv_id: str):
+    messages = db.get_conversation_messages(conv_id)
+    return jsonify({"messages": messages})
 
 
 @app.route("/upload/pdf", methods=["POST"])
@@ -125,9 +193,10 @@ def chat():
 
 @app.route("/chat/stream")
 def chat_stream():
-    message = request.args.get("message", "").strip()
+    message    = request.args.get("message", "").strip()
     agent_name = request.args.get("agent", "conhecimento").lower()
     session_id = request.args.get("session_id") or str(uuid.uuid4())
+    conv_id    = request.args.get("conv_id") or None
 
     def _sse(payload: dict) -> str:
         return f"data: {json.dumps(payload)}\n\n"
@@ -165,8 +234,8 @@ def chat_stream():
             return
 
         complete = "".join(full_response)
-        db.save_message(agent=agent_name, role="user", content=message, session_id=session_id)
-        db.save_message(agent=agent_name, role="assistant", content=complete, session_id=session_id)
+        db.save_message(agent=agent_name, role="user",      content=message,  session_id=session_id, conversation_id=conv_id)
+        db.save_message(agent=agent_name, role="assistant", content=complete,  session_id=session_id, conversation_id=conv_id)
         yield _sse({"done": True, "full_response": complete, "provider": provider})
 
     return Response(

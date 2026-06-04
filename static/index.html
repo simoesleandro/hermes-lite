@@ -10,66 +10,77 @@
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="layout">
+  <div class="app layout-empty" id="app">
 
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-icon">⬡</span>
-        <span class="brand-name">Hermes <span class="brand-lite">Lite</span></span>
-      </div>
-
-      <nav class="agent-tabs" role="group" aria-label="Selecionar agente">
-        <button class="tab active" data-agent="conhecimento">🧠 Conhec.</button>
-        <button class="tab" data-agent="desenvolvimento">💻 Dev</button>
-        <button class="tab" data-agent="saude">💚 Saúde</button>
-        <button class="tab" data-agent="treino">🏋️ Treino</button>
-        <button class="tab" data-agent="produtividade">⚡ Produt.</button>
-        <button class="tab" data-agent="sentinela">🔍 Sentin.</button>
-        <button class="tab" data-agent="juridico">⚖️ Juríd.</button>
-        <button class="tab" data-agent="investigador">🕵️ Invest.</button>
-        <button class="tab" data-agent="leitor">📄 Leitor</button>
-        <button class="tab" data-agent="analista">📊 Analista</button>
-      </nav>
-
-      <div class="status-dots" id="status-dots" aria-label="Status dos providers">
-        <span class="status-dot checking" id="dot-groq"   data-provider="groq"   title="Groq: checando...">●</span>
-        <span class="status-dot checking" id="dot-gemini" data-provider="gemini" title="Gemini: checando...">●</span>
-        <span class="status-dot checking" id="dot-ollama" data-provider="ollama" title="Ollama: checando...">●</span>
-      </div>
-    </header>
-
-    <main class="chat-area" id="chat-area">
-      <div class="chat-inner" id="chat-inner">
-        <div class="welcome">
-          <p class="welcome-title">Como posso ajudar?</p>
-          <p class="welcome-sub">Selecione um agente e comece a conversar</p>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <span class="brand-icon">⬡</span>
+          <span class="brand-name">Hermes <span class="brand-lite">Lite</span></span>
         </div>
-      </div>
-    </main>
-
-    <footer class="input-bar">
-      <form id="chat-form" class="input-form">
-        <input type="file" id="pdfInput" accept=".pdf" hidden>
-        <button type="button" id="attachBtn" title="Anexar PDF" aria-label="Anexar PDF">📎</button>
-        <input
-          id="message-input"
-          type="text"
-          placeholder="Digite sua mensagem..."
-          autocomplete="off"
-          required
-        />
-        <button type="button" id="stop-btn" aria-label="Parar geração">⏹</button>
-        <button type="submit" id="send-btn" aria-label="Enviar">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-               fill="none" stroke="currentColor" stroke-width="2.5"
-               stroke-linecap="round" stroke-linejoin="round">
-            <line x1="22" y1="2" x2="11" y2="13"/>
-            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        <button id="new-conv-btn" class="new-conv-btn" title="Nova conversa">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
+          Nova conversa
         </button>
-      </form>
-      <p class="agent-badge">Agente: <span id="current-agent-label">Conhecimento</span></p>
-    </footer>
+      </div>
+      <nav class="conv-list" id="conv-list">
+        <!-- populated by JS in Stage 4 -->
+      </nav>
+    </aside>
+
+    <div class="main" id="main">
+      <header class="topbar">
+        <div class="status-dots" id="status-dots" aria-label="Status dos providers">
+          <span class="status-dot checking" id="dot-groq"   data-provider="groq"   title="Groq: checando...">●</span>
+          <span class="status-dot checking" id="dot-gemini" data-provider="gemini" title="Gemini: checando...">●</span>
+          <span class="status-dot checking" id="dot-ollama" data-provider="ollama" title="Ollama: checando...">●</span>
+        </div>
+      </header>
+
+      <main class="chat-area" id="chat-area">
+        <div class="chat-inner" id="chat-inner">
+          <div class="welcome" id="welcome">
+            <p class="welcome-title">Como posso ajudar?</p>
+          </div>
+        </div>
+      </main>
+
+      <footer class="input-bar" id="input-bar">
+        <div class="input-wrap">
+          <form id="chat-form" class="input-form">
+            <input type="file" id="pdfInput" accept=".pdf" hidden>
+            <button type="button" id="attachBtn" title="Anexar PDF" aria-label="Anexar PDF">📎</button>
+            <textarea
+              id="message-input"
+              placeholder="Como posso ajudar?"
+              autocomplete="off"
+              rows="1"
+            ></textarea>
+            <div class="input-actions">
+              <button type="button" id="stop-btn" aria-label="Parar geração">⏹</button>
+              <button type="submit" id="send-btn" aria-label="Enviar">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2.5"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13"/>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              </button>
+            </div>
+          </form>
+          <div class="agent-badge-row">
+            <button class="agent-badge" id="agent-badge" title="Clique para trocar agente">
+              <span id="agent-badge-icon">🧠</span>
+              <span id="agent-badge-label">Conhecimento</span>
+            </button>
+            <div class="agent-dropdown" id="agent-dropdown" hidden></div>
+          </div>
+          <div class="agent-status" id="agent-status" hidden></div>
+        </div>
+      </footer>
+    </div>
 
   </div>
 
