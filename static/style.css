@@ -164,33 +164,37 @@ body::after {
 /* ── Agent tabs ───────────────────────────────────── */
 .agent-tabs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   flex: 1;
   align-items: center;
   overflow-x: auto;
   flex-wrap: nowrap;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  scroll-snap-type: x mandatory;
 }
 .agent-tabs::-webkit-scrollbar { display: none; }
+
+@media (min-width: 768px) {
+  .agent-tabs {
+    overflow-x: hidden;
+  }
+}
 
 .tab {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 4px 7px;
+  gap: 2px;
+  padding: 3px 5px;
   border-radius: 20px;
   border: none;
   background: transparent;
   color: rgba(255, 255, 255, 0.55);
   font-family: 'DM Sans', sans-serif;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 400;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  scroll-snap-align: start;
   transition: all 0.2s ease;
 }
 
@@ -206,7 +210,7 @@ body::after {
 .tab.active {
   background: var(--accent-dim);
   color: var(--accent-lt);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
   box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.5),
               0 0 8px rgba(139, 92, 246, 0.25);
