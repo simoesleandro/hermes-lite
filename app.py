@@ -31,11 +31,13 @@ _RULES = [
     (re.compile(r"bebi|água|peso|hrv|sono|calorias|hidrat", re.I), "saude"),
     (re.compile(r"treino|muscula|corrida|ppl|série|repetição|supino", re.I), "treino"),
     (re.compile(r"código|bug|python|refator|arquitetura|função|classe", re.I), "desenvolvimento"),
+    # analista antes de sentinela/juridico — perguntas analíticas sobre contratos vão aqui
+    (re.compile(r"fornecedor|top\s*\d+|ranking|maior valor|sentinela\s*db|quais\s+os|liste\s+os\s+contratos|gráfico|analisar dados|visualizar|dashboard|planilha", re.I), "analista"),
+    # juridico antes de sentinela — termos legais explícitos têm prioridade sobre termos de procurement
+    (re.compile(r"lei\b|cláusula|processo judicial|advogado|recurso\b|impugnar|jurídico", re.I), "juridico"),
     (re.compile(r"contrato público|pncp|licitação|anomalia|dispensa", re.I), "sentinela"),
-    (re.compile(r"lei|contrato|jurídico|processo|cláusula|advogado", re.I), "juridico"),
     (re.compile(r"pesquis|investig|buscar na web|notícia", re.I), "investigador"),
     (re.compile(r"pdf|documento|resumir arquivo|anexo", re.I), "leitor"),
-    (re.compile(r"gráfico|analisar dados|visualizar|dashboard|planilha", re.I), "analista"),
     (re.compile(r"tarefa|agenda|lembrete|produtividade|organizar", re.I), "produtividade"),
 ]
 
