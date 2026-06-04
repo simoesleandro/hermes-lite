@@ -40,12 +40,21 @@ Bases de dados disponíveis (variáveis já definidas no ambiente):
 Libs disponíveis: pandas, numpy, matplotlib, seaborn, sqlite3,
 json, datetime, math, statistics, collections, itertools, re, csv
 
-Para gráficos: use matplotlib ou seaborn.
-Crie o gráfico normalmente (plt.figure, plt.bar, plt.plot, etc.) —
-o ambiente captura automaticamente ao final.
-NÃO chame save_chart() nem imprima strings base64.
+GRÁFICOS — OBRIGATÓRIO:
+SEMPRE gere um gráfico matplotlib ao final de qualquer análise
+com dados numéricos. Nunca retorne só texto quando há dados
+para visualizar. O ambiente captura figuras abertas automaticamente
+via plt.get_fignums() — NÃO chame save_chart() nem imprima base64.
+Padrão obrigatório de estilo escuro:
+  plt.style.use('dark_background')
+  fig, ax = plt.subplots(figsize=(10, 5))
+  fig.patch.set_facecolor('#0d1117')
+  ax.set_facecolor('#0d1117')
+  # ... plot ...
+  plt.tight_layout()
 
 Para dados tabulares: use print() com formatação clara.
+Imprima os dados E gere o gráfico — ambos são capturados.
 
 IMPORTANTE:
 - Gere APENAS o código Python, sem explicações
