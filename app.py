@@ -376,11 +376,13 @@ def _check_ollama() -> dict:
 
 
 def _check_syshealth() -> dict:
+    import time
     try:
         req = urllib.request.Request("http://localhost:5060/health")
+        t0 = time.monotonic()
         with urllib.request.urlopen(req, timeout=5) as resp:
             resp.read()
-        return {"status": "online"}
+        return {"status": "online", "latency_ms": round((time.monotonic() - t0) * 1000)}
     except Exception:
         return {"status": "offline"}
 

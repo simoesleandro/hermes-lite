@@ -385,7 +385,7 @@ form.addEventListener("submit", async (e) => {
 
   let progressSteps = null;
   let finalized     = false;
-  let tokenBuffer   = [];
+  let charBuffer    = [];
   let rawText       = "";
   let rafId         = null;
   let firstToken    = true;
@@ -408,7 +408,7 @@ form.addEventListener("submit", async (e) => {
   function finalizeUI(provider) {
     if (finalized) return;
     finalized = true;
-    if (rafId) cancelAnimationFrame(rafId);
+    if (rafId) { clearTimeout(rafId); cancelAnimationFrame(rafId); }
     clearInterval(phraseInterval);
     if (thinkingEl.parentNode) thinkingEl.remove();
     bubble.classList.remove("streaming");
@@ -449,13 +449,14 @@ form.addEventListener("submit", async (e) => {
   }
 
   function drainBuffer() {
-    if (tokenBuffer.length) {
-      rawText += tokenBuffer.shift();
+    if (charBuffer.length) {
+      const chunk = charBuffer.splice(0, 4).join("");
+      rawText += chunk;
       body.innerHTML = marked.parse(rawText);
       scrollToBottom();
     }
-    if (!streamDone || tokenBuffer.length) {
-      rafId = requestAnimationFrame(drainBuffer);
+    if (!streamDone || charBuffer.length) {
+      rafId = setTimeout(() => requestAnimationFrame(drainBuffer), 20);
     } else {
       finalizeUI(providerRef);
     }
@@ -464,7 +465,7 @@ form.addEventListener("submit", async (e) => {
 
   function handleStop() {
     streamDone = true;
-    tokenBuffer = [];
+    charBuffer = [];
     if (es) es.close();
     finalizeUI(null);
     appendSystemMessage("Geração interrompida");
@@ -504,8 +505,10 @@ form.addEventListener("submit", async (e) => {
 
     if (data.progress) {
       clearInterval(phraseInterval);
-      const textEl = thinkingEl.querySelector(".thinking-text");
-      if (textEl) textEl.textContent = data.progress;
+      if (thinkingEl.parentNode) {
+        thinkingEl.classList.add("thinking-fade-out");
+        setTimeout(() => thinkingEl.parentNode && thinkingEl.remove(), 350);
+      }
 
       if (!progressSteps) {
         progressSteps = document.createElement("div");
@@ -529,7 +532,7 @@ form.addEventListener("submit", async (e) => {
     }
 
     if (data.token) {
-      tokenBuffer.push(data.token);
+      charBuffer.push(...data.token.split(""));
       if (firstToken) {
         firstToken = false;
         clearInterval(phraseInterval);
@@ -540,7 +543,7 @@ form.addEventListener("submit", async (e) => {
 
     if (data.done) {
       providerRef = data.provider;
-      if (data.full_response && !rawText && !tokenBuffer.length) {
+      if (data.full_response && !rawText && !charBuffer.length) {
         rawText = data.full_response;
       }
       streamDone = true;
@@ -549,11 +552,11 @@ form.addEventListener("submit", async (e) => {
   };
 
   es.onerror = () => {
-    if (!rawText && !tokenBuffer.length) {
+    if (!rawText && !charBuffer.length) {
       body.innerHTML = "Erro de conexão com o servidor.";
     }
     streamDone = true;
-    tokenBuffer = [];
+    charBuffer = [];
     finalizeUI(null);
   };
 });
