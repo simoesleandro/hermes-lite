@@ -18,11 +18,29 @@
 
 html, body {
   height: 100%;
-  background: var(--bg);
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
   font-size: 15px;
   overflow: hidden;
+}
+
+body {
+  background: #060818;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 20%,
+      rgba(124, 58, 237, 0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 80% 80%,
+      rgba(79, 70, 229, 0.2) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 60% 30%,
+      rgba(167, 139, 250, 0.1) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 /* ── App shell ───────────────────────────────────────── */
@@ -37,11 +55,14 @@ html, body {
   top: 0; left: 0;
   width: var(--sidebar-w);
   height: 100vh;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
+  background: rgba(10, 8, 30, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-right: 1px solid rgba(167, 139, 250, 0.12);
   display: flex;
   flex-direction: column;
   z-index: 200;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
 }
 
 .sidebar-header {
@@ -436,12 +457,14 @@ html, body {
 .avatar {
   width: 28px; height: 28px;
   border-radius: 50%;
-  background: var(--surface2);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   font-size: 0.75rem; font-weight: 700;
   flex-shrink: 0;
   color: var(--accent-lt);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(167, 139, 250, 0.2);
   user-select: none;
 }
 .msg-row.user .avatar { background: var(--accent); color: white; border-color: transparent; }
@@ -450,14 +473,21 @@ html, body {
 
 .msg-row.user .bubble {
   background: rgba(124, 58, 237, 0.2);
-  border: 1px solid rgba(124, 58, 237, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   color: #ede9ff;
   border-radius: 18px 18px 4px 18px;
   padding: 0.65rem 1rem;
 }
 .msg-row.assistant .bubble {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(167, 139, 250, 0.1);
+  border-radius: 16px;
+  padding: 0.75rem 1rem 0.65rem;
   color: var(--text);
-  padding: 4px 0 10px 0.1rem;
 }
 
 .bubble-body { word-break: break-word; }
