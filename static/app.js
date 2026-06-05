@@ -43,10 +43,11 @@ const THINKING_PHRASES = {
 
 // ── Global state ──────────────────────────────────────
 const state = {
-  currentAgent:  "conhecimento",
-  agentLocked:   false,
-  currentConvId: null,
-  isStreaming:   false,
+  currentAgent:      "conhecimento",
+  agentLocked:       false,
+  currentConvId:     null,
+  isStreaming:       false,
+  pendingAttachment: null,
 };
 const sessionId = crypto.randomUUID();
 
@@ -59,7 +60,7 @@ const input           = document.getElementById("message-input");
 const sendBtn         = document.getElementById("send-btn");
 const stopBtn         = document.getElementById("stop-btn");
 const attachBtn       = document.getElementById("attachBtn");
-const pdfInput        = document.getElementById("pdfInput");
+const fileInput       = document.getElementById("fileInput");
 const agentBadge      = document.getElementById("agent-badge");
 const agentBadgeIcon  = document.getElementById("agent-badge-icon");
 const agentBadgeLabel = document.getElementById("agent-badge-label");
@@ -85,10 +86,10 @@ input.addEventListener("keydown", (e) => {
 // ── Badge ─────────────────────────────────────────────
 function updateBadge(agentKey) {
   const meta = AGENT_META[agentKey] || AGENT_META.conhecimento;
-  state.currentAgent        = agentKey;
+  state.currentAgent          = agentKey;
   agentBadgeIcon.textContent  = meta.icon;
   agentBadgeLabel.textContent = meta.label;
-  attachBtn.style.display = agentKey === "leitor" ? "flex" : "none";
+  attachBtn.style.display     = "flex";
 }
 
 // ── Agent dropdown ────────────────────────────────────
@@ -201,32 +202,53 @@ function appendSystemMessage(text) {
   scrollToBottom();
 }
 
-// ── PDF upload ────────────────────────────────────────
-attachBtn.addEventListener("click", () => pdfInput.click());
+// ── Universal file upload ─────────────────────────────
+attachBtn.addEventListener("click", () => fileInput.click());
 
-pdfInput.addEventListener("change", async () => {
-  const file = pdfInput.files[0];
+fileInput.addEventListener("change", async () => {
+  const file = fileInput.files[0];
   if (!file) return;
-  pdfInput.value = "";
+  fileInput.value = "";
 
-  const fd = new FormData();
-  fd.append("file", file);
-  fd.append("session_id", sessionId);
+  const ext = file.name.split(".").pop().toLowerCase();
+  appendSystemMessage(`📎 Carregando ${file.name}...`);
 
-  appendSystemMessage(`📎 Enviando ${file.name}...`);
   try {
-    const res  = await fetch("/upload/pdf", { method: "POST", body: fd });
-    const data = await res.json();
-    if (data.success) {
-      appendSystemMessage(
-        `📄 ${data.filename} carregado (${data.pages} páginas · ${data.chars.toLocaleString("pt-BR")} caracteres)`
-      );
-      if (data.truncated) appendSystemMessage("⚠️ Documento grande — analisando primeiras 20 + últimas 5 páginas");
+    if (ext === "pdf") {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("session_id", sessionId);
+      const res  = await fetch("/upload/pdf", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.success) {
+        state.pendingAttachment = { type: "pdf", filename: data.filename, text: data.text, pages: data.pages };
+        appendSystemMessage(
+          `📄 ${data.filename} (${data.pages} pág. · ${data.chars.toLocaleString("pt-BR")} chars) — envie sua pergunta`
+        );
+        if (data.truncated) appendSystemMessage("⚠️ Documento grande — primeiras 20 + últimas 5 páginas");
+      } else {
+        appendSystemMessage(`❌ Erro: ${data.error}`);
+      }
+    } else if (ext === "jpg" || ext === "jpeg" || ext === "png") {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res  = await fetch("/upload/image", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.success) {
+        state.pendingAttachment = { type: "image", filename: data.filename, data: data.base64 };
+        appendSystemMessage(`🖼️ ${data.filename} (${data.size_kb} KB) — envie sua pergunta`);
+      } else {
+        appendSystemMessage(`❌ Erro: ${data.error}`);
+      }
+    } else if (ext === "txt") {
+      const text = await file.text();
+      state.pendingAttachment = { type: "txt", filename: file.name, text };
+      appendSystemMessage(`📝 ${file.name} (${text.length.toLocaleString("pt-BR")} chars) — envie sua pergunta`);
     } else {
-      appendSystemMessage(`❌ Erro: ${data.error}`);
+      appendSystemMessage(`❌ Tipo não suportado: .${ext} — use pdf, jpg, png ou txt`);
     }
   } catch {
-    appendSystemMessage("❌ Erro ao enviar arquivo");
+    appendSystemMessage("❌ Erro ao processar arquivo");
   }
 });
 
@@ -275,6 +297,7 @@ form.addEventListener("submit", async (e) => {
   input.value = "";
   input.style.height = "auto";
   state.isStreaming = true;
+  form.classList.add("aurora-active");
   sendBtn.disabled = true;
   sendBtn.style.display = "none";
   stopBtn.style.display = "flex";
@@ -374,6 +397,7 @@ form.addEventListener("submit", async (e) => {
     }
 
     state.isStreaming = false;
+    form.classList.remove("aurora-active");
     stopBtn.style.display = "none";
     sendBtn.style.display = "flex";
     sendBtn.disabled      = false;
@@ -406,7 +430,23 @@ form.addEventListener("submit", async (e) => {
   }
   stopBtn.addEventListener("click", handleStop);
 
-  const params = new URLSearchParams({ message, agent: agentSnap, session_id: sessionId });
+  // Build message with attachment if present (leitor PDF is handled server-side)
+  let messageToSend = message;
+  if (state.pendingAttachment) {
+    const att = state.pendingAttachment;
+    const isLeitorPdf = att.type === "pdf" && agentSnap === "leitor";
+    if (!isLeitorPdf) {
+      if (att.type === "image") {
+        messageToSend = `[Imagem: ${att.filename}]\n${att.data}\n\n${message}`;
+      } else if (att.type === "pdf") {
+        messageToSend = `[Documento PDF: ${att.filename} — ${att.pages} pág.]\n${att.text}\n\n${message}`;
+      } else if (att.type === "txt") {
+        messageToSend = `[Arquivo de texto: ${att.filename}]\n${att.text}\n\n${message}`;
+      }
+    }
+    state.pendingAttachment = null;
+  }
+  const params = new URLSearchParams({ message: messageToSend, agent: agentSnap, session_id: sessionId });
   if (state.currentConvId) params.set("conv_id", state.currentConvId);
   const es = new EventSource(`/chat/stream?${params}`);
 
@@ -551,9 +591,10 @@ async function loadConversation(convId, agent) {
 function newConversation() {
   if (state.isStreaming) return;
 
-  state.currentConvId = null;
-  state.currentAgent  = "conhecimento";
-  state.agentLocked   = false;
+  state.currentConvId    = null;
+  state.currentAgent     = "conhecimento";
+  state.agentLocked      = false;
+  state.pendingAttachment = null;
 
   chatInner.innerHTML = "";
   app.classList.add("layout-empty");

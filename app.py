@@ -185,6 +185,31 @@ def upload_pdf():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/upload/image", methods=["POST"])
+def upload_image():
+    if "file" not in request.files:
+        return jsonify({"success": False, "error": "Nenhum arquivo enviado"}), 400
+
+    f = request.files["file"]
+    ext = os.path.splitext(f.filename.lower())[1]
+    if ext not in {".jpg", ".jpeg", ".png"}:
+        return jsonify({"success": False, "error": "Apenas jpg e png são aceitos"}), 400
+
+    file_bytes = f.read()
+    if len(file_bytes) > 8 * 1024 * 1024:
+        return jsonify({"success": False, "error": "Imagem muito grande (máx. 8MB)"}), 400
+
+    import base64
+    mime = "image/jpeg" if ext in {".jpg", ".jpeg"} else "image/png"
+    b64 = base64.b64encode(file_bytes).decode()
+    return jsonify({
+        "success":  True,
+        "filename": f.filename,
+        "base64":   f"data:{mime};base64,{b64}",
+        "size_kb":  round(len(file_bytes) / 1024),
+    })
+
+
 _OPS_ALLOWED_SERVICES = {"HermesCronos", "HermesVigia", "HermesLite"}
 _OPS_ALLOWED_ACTIONS  = {"start", "stop", "restart"}
 

@@ -188,8 +188,9 @@ html, body {
 }
 
 .input-form {
+  position: relative;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
   background: rgba(10, 12, 28, 0.82);
   backdrop-filter: blur(24px) saturate(160%);
@@ -198,6 +199,47 @@ html, body {
   border-radius: 16px;
   padding: 12px 14px;
   box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  transition: border-color 0.4s ease;
+}
+
+/* ── Glassmorphism iridescente ──────────────────────── */
+@property --aurora-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes aurora-rotate {
+  to { --aurora-angle: 360deg; }
+}
+
+.input-form::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 17px;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--aurora-angle),
+    #8b5cf6, #6366f1, #818cf8, #a78bfa, #7c3aed, #8b5cf6
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.input-form:focus-within::before,
+.input-form.aurora-active::before {
+  opacity: 1;
+  animation: aurora-rotate 3s linear infinite;
+}
+
+.input-form:focus-within,
+.input-form.aurora-active {
+  border-color: transparent;
 }
 
 #message-input {
@@ -213,6 +255,7 @@ html, body {
   max-height: 160px;
   line-height: 1.5;
   overflow-y: hidden;
+  padding: 4px 0;
 }
 #message-input::placeholder { color: var(--muted); }
 
