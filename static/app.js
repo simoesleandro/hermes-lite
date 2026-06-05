@@ -27,6 +27,20 @@ const STATUS_MSG = {
   ops:             "⚙️ Ops está consultando os serviços...",
 };
 
+const THINKING_PHRASES = {
+  conhecimento:    ["🧠 Pensando...",               "Consultando base de conhecimento...", "Formulando resposta..."],
+  desenvolvimento: ["💻 Analisando o código...",    "Revisando a lógica...",               "Estruturando solução..."],
+  saude:           ["💚 Consultando seus dados...", "Analisando métricas de saúde...",     "Calculando recomendações..."],
+  treino:          ["🏋️ Calculando performance...", "Analisando seus treinos...",           "Otimizando protocolo..."],
+  produtividade:   ["⚡ Organizando...",            "Estruturando plano...",               "Priorizando tarefas..."],
+  sentinela:       ["🔍 Varrendo os dados...",      "Analisando contratos...",             "Identificando padrões..."],
+  juridico:        ["⚖️ Consultando legislação...", "Analisando dispositivos legais...",   "Verificando jurisprudência..."],
+  investigador:    ["🕵️ Pesquisando...",            "Cruzando informações...",             "Verificando fontes..."],
+  leitor:          ["📄 Processando documento...",  "Analisando conteúdo...",              "Extraindo informações..."],
+  analista:        ["📊 Gerando análise...",        "Processando dados...",                "Preparando visualização..."],
+  ops:             ["⚙️ Consultando serviços...",   "Verificando status...",               "Aguardando resposta..."],
+};
+
 // ── Global state ──────────────────────────────────────
 const state = {
   currentAgent:  "conhecimento",
@@ -268,10 +282,6 @@ form.addEventListener("submit", async (e) => {
   const agentSnap = state.currentAgent;
   const meta      = AGENT_META[agentSnap];
 
-  agentStatus.innerHTML = `<div class="thinking-dots"><span></span><span></span><span></span></div><span class="thinking-text">${STATUS_MSG[agentSnap] || "Pensando..."}</span>`;
-  agentStatus.classList.remove("thinking-fade-out");
-  agentStatus.removeAttribute("hidden");
-
   // Build streaming bubble
   const row = document.createElement("div");
   row.classList.add("msg-row", "assistant");
@@ -295,6 +305,20 @@ form.addEventListener("submit", async (e) => {
   row.appendChild(bubble);
   chatInner.appendChild(row);
   scrollToBottom();
+
+  // Thinking indicator inside bubble
+  const thinkingEl = document.createElement("div");
+  thinkingEl.classList.add("bubble-thinking");
+  thinkingEl.innerHTML = '<div class="thinking-dots"><span></span><span></span><span></span></div><span class="thinking-text"></span>';
+  bubble.insertBefore(thinkingEl, body);
+  const phrases    = THINKING_PHRASES[agentSnap] || ["Pensando..."];
+  let   phraseIdx  = 0;
+  thinkingEl.querySelector(".thinking-text").textContent = phrases[0];
+  let phraseInterval = setInterval(() => {
+    phraseIdx = (phraseIdx + 1) % phrases.length;
+    const textEl = thinkingEl.querySelector(".thinking-text");
+    if (textEl) textEl.textContent = phrases[phraseIdx];
+  }, 2000);
 
   let progressSteps = null;
   let finalized     = false;
@@ -322,6 +346,8 @@ form.addEventListener("submit", async (e) => {
     if (finalized) return;
     finalized = true;
     if (rafId) cancelAnimationFrame(rafId);
+    clearInterval(phraseInterval);
+    if (thinkingEl.parentNode) thinkingEl.remove();
     bubble.classList.remove("streaming");
     if (rawText) {
       body.innerHTML = marked.parse(rawText);
@@ -348,7 +374,6 @@ form.addEventListener("submit", async (e) => {
     }
 
     state.isStreaming = false;
-    agentStatus.setAttribute("hidden", "");
     stopBtn.style.display = "none";
     sendBtn.style.display = "flex";
     sendBtn.disabled      = false;
@@ -360,17 +385,13 @@ form.addEventListener("submit", async (e) => {
 
   function drainBuffer() {
     if (tokenBuffer.length) {
-      rawText += tokenBuffer.splice(0).join("");
+      rawText += tokenBuffer.shift();
       body.innerHTML = marked.parse(rawText);
       scrollToBottom();
     }
-    if (!streamDone) {
+    if (!streamDone || tokenBuffer.length) {
       rafId = requestAnimationFrame(drainBuffer);
-    } else if (!tokenBuffer.length) {
-      finalizeUI(providerRef);
     } else {
-      rawText += tokenBuffer.splice(0).join("");
-      body.innerHTML = marked.parse(rawText);
       finalizeUI(providerRef);
     }
   }
@@ -401,7 +422,8 @@ form.addEventListener("submit", async (e) => {
     }
 
     if (data.progress) {
-      const textEl = agentStatus.querySelector(".thinking-text");
+      clearInterval(phraseInterval);
+      const textEl = thinkingEl.querySelector(".thinking-text");
       if (textEl) textEl.textContent = data.progress;
 
       if (!progressSteps) {
@@ -429,8 +451,9 @@ form.addEventListener("submit", async (e) => {
       tokenBuffer.push(data.token);
       if (firstToken) {
         firstToken = false;
-        agentStatus.classList.add("thinking-fade-out");
-        setTimeout(() => agentStatus.setAttribute("hidden", ""), 350);
+        clearInterval(phraseInterval);
+        thinkingEl.classList.add("thinking-fade-out");
+        setTimeout(() => thinkingEl.parentNode && thinkingEl.remove(), 350);
       }
     }
 

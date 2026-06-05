@@ -353,6 +353,22 @@ html, body {
   30%           { transform: scale(1);   opacity: 1; }
 }
 
+/* ── Bubble thinking indicator ───────────────────────── */
+.bubble-thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 12px;
+  animation: fadeIn 0.25s ease;
+}
+.bubble-thinking .thinking-text {
+  font-size: 0.84rem;
+  color: var(--text-sub);
+}
+.bubble-thinking.thinking-fade-out {
+  animation: thinkingFadeOut 0.35s ease forwards;
+}
+
 /* ── Messages ────────────────────────────────────────── */
 .msg-row { display: flex; gap: 12px; margin-bottom: 22px; align-items: flex-start; }
 .msg-row.user { flex-direction: row-reverse; }
