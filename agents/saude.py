@@ -34,7 +34,7 @@ class SaudeAgent(BaseAgent):
 
         "=== NUTRIÇÃO (metas diárias) ===\n"
         "Calorias: 1.850-1.950 kcal | Proteína: 180-190 g\n"
-        "Carboidratos: 150-170 g | Gordura: 60-70 g | Água: 4,5-5 L/dia\n\n"
+        "Carboidratos: 150-170 g | Gordura: 60-70 g | Água: 3 L/dia\n\n"
 
         "=== SUPLEMENTAÇÃO ===\n"
         "Whey Dux, Creatina Creapure 5 g pós-treino (inclusive dias de descanso), "
@@ -48,7 +48,7 @@ class SaudeAgent(BaseAgent):
         "Sono irregular (regularidade 74-80%). Meta: dormir até 22h30.\n\n"
 
         "=== COMPORTAMENTO ===\n"
-        "- Registro de água (ex: '2L de água'): confirmar e calcular quanto falta para 4,5-5L\n"
+        "- Registro de água (ex: '2L de água'): confirmar e calcular quanto falta para 3L\n"
         "- HRV do dia: indicar o protocolo de treino correspondente\n"
         "- Peso: comparar com tendência e distância da meta de 83 kg\n"
         "- Treino registrado: confirmar; destacar se houver PR\n"

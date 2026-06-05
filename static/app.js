@@ -190,7 +190,6 @@ function appendMessage(role, text, agentKey) {
     avatar.textContent = "U";
   } else {
     avatar.appendChild(lucideIcon(meta.icon, 16));
-    lucide.createIcons();
   }
 
   const bubble = document.createElement("div");
@@ -213,6 +212,7 @@ function appendMessage(role, text, agentKey) {
   row.appendChild(avatar);
   row.appendChild(bubble);
   chatInner.appendChild(row);
+  lucide.createIcons();
   scrollToBottom();
   return row;
 }
@@ -351,7 +351,6 @@ form.addEventListener("submit", async (e) => {
   const avatar = document.createElement("div");
   avatar.classList.add("avatar");
   avatar.appendChild(lucideIcon(meta.icon, 16));
-  lucide.createIcons();
 
   const bubble = document.createElement("div");
   bubble.classList.add("bubble", "streaming");
@@ -367,6 +366,7 @@ form.addEventListener("submit", async (e) => {
   row.appendChild(avatar);
   row.appendChild(bubble);
   chatInner.appendChild(row);
+  lucide.createIcons();
   scrollToBottom();
 
   // Thinking indicator inside bubble
