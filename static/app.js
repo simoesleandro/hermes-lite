@@ -43,12 +43,12 @@ const THINKING_PHRASES = {
 
 // ── Global state ──────────────────────────────────────
 const state = {
-  currentAgent:      "conhecimento",
-  agentLocked:       false,
-  currentConvId:     null,
-  isStreaming:       false,
-  pendingAttachment: null,
+  currentAgent:  "conhecimento",
+  agentLocked:   false,
+  currentConvId: null,
+  isStreaming:   false,
 };
+let attachedFile = null;
 const sessionId = crypto.randomUUID();
 
 // ── DOM refs ──────────────────────────────────────────
@@ -66,6 +66,10 @@ const agentBadgeIcon  = document.getElementById("agent-badge-icon");
 const agentBadgeLabel = document.getElementById("agent-badge-label");
 const agentDropdown   = document.getElementById("agent-dropdown");
 const agentStatus     = document.getElementById("agent-status");
+const fileChip        = document.getElementById("file-chip");
+const fileChipIcon    = document.getElementById("file-chip-icon");
+const fileChipName    = document.getElementById("file-chip-name");
+const fileChipRemove  = document.getElementById("file-chip-remove");
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -222,6 +226,15 @@ function appendSystemMessage(text) {
   scrollToBottom();
 }
 
+// ── File chip ─────────────────────────────────────────
+function clearFileChip() {
+  attachedFile = null;
+  fileChip.setAttribute("hidden", "");
+  fileChipIcon.innerHTML = "";
+  fileChipName.textContent = "";
+}
+fileChipRemove.addEventListener("click", clearFileChip);
+
 // ── Universal file upload ─────────────────────────────
 attachBtn.addEventListener("click", () => fileInput.click());
 
@@ -231,7 +244,18 @@ fileInput.addEventListener("change", async () => {
   fileInput.value = "";
 
   const ext = file.name.split(".").pop().toLowerCase();
-  appendSystemMessage(`📎 Carregando ${file.name}...`);
+  const validExts = ["pdf", "jpg", "jpeg", "png", "txt"];
+  if (!validExts.includes(ext)) {
+    appendSystemMessage(`❌ Tipo não suportado: .${ext}`);
+    return;
+  }
+
+  const iconName = ["jpg", "jpeg", "png"].includes(ext) ? "image" : "file-text";
+  fileChipIcon.innerHTML = "";
+  fileChipIcon.appendChild(lucideIcon(iconName, 12));
+  lucide.createIcons();
+  fileChipName.textContent = file.name.length > 20 ? file.name.slice(0, 20) + "…" : file.name;
+  fileChip.removeAttribute("hidden");
 
   try {
     if (ext === "pdf") {
@@ -241,33 +265,28 @@ fileInput.addEventListener("change", async () => {
       const res  = await fetch("/upload/pdf", { method: "POST", body: fd });
       const data = await res.json();
       if (data.success) {
-        state.pendingAttachment = { type: "pdf", filename: data.filename, text: data.text, pages: data.pages };
-        appendSystemMessage(
-          `📄 ${data.filename} (${data.pages} pág. · ${data.chars.toLocaleString("pt-BR")} chars) — envie sua pergunta`
-        );
-        if (data.truncated) appendSystemMessage("⚠️ Documento grande — primeiras 20 + últimas 5 páginas");
+        attachedFile = { type: "pdf", filename: data.filename, text: data.text, pages: data.pages };
       } else {
+        clearFileChip();
         appendSystemMessage(`❌ Erro: ${data.error}`);
       }
-    } else if (ext === "jpg" || ext === "jpeg" || ext === "png") {
+    } else if (["jpg", "jpeg", "png"].includes(ext)) {
       const fd = new FormData();
       fd.append("file", file);
       const res  = await fetch("/upload/image", { method: "POST", body: fd });
       const data = await res.json();
       if (data.success) {
-        state.pendingAttachment = { type: "image", filename: data.filename, data: data.base64 };
-        appendSystemMessage(`🖼️ ${data.filename} (${data.size_kb} KB) — envie sua pergunta`);
+        attachedFile = { type: "image", filename: data.filename, data: data.base64 };
       } else {
+        clearFileChip();
         appendSystemMessage(`❌ Erro: ${data.error}`);
       }
     } else if (ext === "txt") {
       const text = await file.text();
-      state.pendingAttachment = { type: "txt", filename: file.name, text };
-      appendSystemMessage(`📝 ${file.name} (${text.length.toLocaleString("pt-BR")} chars) — envie sua pergunta`);
-    } else {
-      appendSystemMessage(`❌ Tipo não suportado: .${ext} — use pdf, jpg, png ou txt`);
+      attachedFile = { type: "txt", filename: file.name, text };
     }
   } catch {
+    clearFileChip();
     appendSystemMessage("❌ Erro ao processar arquivo");
   }
 });
@@ -417,6 +436,7 @@ form.addEventListener("submit", async (e) => {
       }, 1500);
     }
 
+    clearFileChip();
     state.isStreaming = false;
     form.classList.remove("aurora-active");
     stopBtn.style.display = "none";
@@ -453,8 +473,8 @@ form.addEventListener("submit", async (e) => {
 
   // Build message with attachment if present (leitor PDF is handled server-side)
   let messageToSend = message;
-  if (state.pendingAttachment) {
-    const att = state.pendingAttachment;
+  if (attachedFile) {
+    const att = attachedFile;
     const isLeitorPdf = att.type === "pdf" && agentSnap === "leitor";
     if (!isLeitorPdf) {
       if (att.type === "image") {
@@ -465,7 +485,7 @@ form.addEventListener("submit", async (e) => {
         messageToSend = `[Arquivo de texto: ${att.filename}]\n${att.text}\n\n${message}`;
       }
     }
-    state.pendingAttachment = null;
+    clearFileChip();
   }
   const params = new URLSearchParams({ message: messageToSend, agent: agentSnap, session_id: sessionId });
   if (state.currentConvId) params.set("conv_id", state.currentConvId);
@@ -613,10 +633,10 @@ async function loadConversation(convId, agent) {
 function newConversation() {
   if (state.isStreaming) return;
 
-  state.currentConvId    = null;
-  state.currentAgent     = "conhecimento";
-  state.agentLocked      = false;
-  state.pendingAttachment = null;
+  state.currentConvId = null;
+  state.currentAgent  = "conhecimento";
+  state.agentLocked   = false;
+  clearFileChip();
 
   chatInner.innerHTML = "";
   app.classList.add("layout-empty");
