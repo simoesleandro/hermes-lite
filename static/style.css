@@ -633,3 +633,48 @@ body::before {
 }
 
 .status-pill-latency { opacity: 0.65; font-size: 0.6rem; }
+
+/* ── Mobile responsive sidebar ───────────────────────── */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-260px);
+    transition: transform 0.3s ease;
+  }
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+  .main {
+    margin-left: 0;
+    width: 100%;
+  }
+  .topbar {
+    display: flex;
+    height: 48px;
+    padding: 0 16px;
+    align-items: center;
+    background: rgba(10, 8, 30, 0.8);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 150;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  body.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .layout-empty .input-bar {
+    left: 0;
+    width: 100%;
+    transform: translateY(50%);
+  }
+}

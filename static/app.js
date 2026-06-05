@@ -13,32 +13,18 @@ const AGENT_META = {
   ops:             { icon: "settings-2",  label: "Ops" },
 };
 
-const STATUS_MSG = {
-  conhecimento:    "🧠 Conhecimento está pensando...",
-  desenvolvimento: "💻 Dev está analisando seu código...",
-  saude:           "💚 Saúde está consultando seus dados...",
-  treino:          "🏋️ Treino está calculando sua performance...",
-  produtividade:   "⚡ Produtividade está organizando...",
-  sentinela:       "🔍 Sentinela está varrendo os dados...",
-  juridico:        "⚖️ Jurídico está consultando a legislação...",
-  investigador:    "🕵️ Investigador está pesquisando...",
-  leitor:          "📄 Leitor está processando o documento...",
-  analista:        "📊 Analista está preparando o gráfico...",
-  ops:             "⚙️ Ops está consultando os serviços...",
-};
-
 const THINKING_PHRASES = {
-  conhecimento:    ["🧠 Pensando...",               "Consultando base de conhecimento...", "Formulando resposta..."],
-  desenvolvimento: ["💻 Analisando o código...",    "Revisando a lógica...",               "Estruturando solução..."],
-  saude:           ["💚 Consultando seus dados...", "Analisando métricas de saúde...",     "Calculando recomendações..."],
-  treino:          ["🏋️ Calculando performance...", "Analisando seus treinos...",           "Otimizando protocolo..."],
-  produtividade:   ["⚡ Organizando...",            "Estruturando plano...",               "Priorizando tarefas..."],
-  sentinela:       ["🔍 Varrendo os dados...",      "Analisando contratos...",             "Identificando padrões..."],
-  juridico:        ["⚖️ Consultando legislação...", "Analisando dispositivos legais...",   "Verificando jurisprudência..."],
-  investigador:    ["🕵️ Pesquisando...",            "Cruzando informações...",             "Verificando fontes..."],
-  leitor:          ["📄 Processando documento...",  "Analisando conteúdo...",              "Extraindo informações..."],
-  analista:        ["📊 Gerando análise...",        "Processando dados...",                "Preparando visualização..."],
-  ops:             ["⚙️ Consultando serviços...",   "Verificando status...",               "Aguardando resposta..."],
+  conhecimento:    ["Processando pergunta...",   "Estruturando resposta...",    "Organizando contexto..."],
+  desenvolvimento: ["Analisando código...",      "Revisando arquitetura...",    "Verificando padrões..."],
+  saude:           ["Consultando seus dados...", "Analisando métricas...",      "Calculando progresso..."],
+  treino:          ["Buscando seus treinos...",  "Analisando performance...",   "Calculando volume..."],
+  produtividade:   ["Organizando tarefas...",    "Estruturando plano...",       "Priorizando itens..."],
+  sentinela:       ["Varrendo contratos...",     "Identificando padrões...",    "Cruzando registros..."],
+  juridico:        ["Consultando legislação...", "Analisando dispositivos...",  "Verificando jurisprudência..."],
+  investigador:    ["Buscando fontes...",        "Cruzando informações...",     "Verificando dados..."],
+  leitor:          ["Processando documento...",  "Extraindo conteúdo...",       "Analisando estrutura..."],
+  analista:        ["Gerando SQL...",            "Executando query...",         "Preparando visualização..."],
+  ops:             ["Verificando serviços...",   "Consultando status...",       "Checando processos..."],
 };
 
 // ── Global state ──────────────────────────────────────
@@ -70,6 +56,37 @@ const fileChip        = document.getElementById("file-chip");
 const fileChipIcon    = document.getElementById("file-chip-icon");
 const fileChipName    = document.getElementById("file-chip-name");
 const fileChipRemove  = document.getElementById("file-chip-remove");
+const sidebar         = document.getElementById("sidebar");
+const hamburgerBtn    = document.getElementById("hamburger-btn");
+const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+
+// ── Mobile sidebar ────────────────────────────────────
+function openSidebar() {
+  sidebar.classList.add("sidebar-open");
+  document.body.classList.add("sidebar-open");
+}
+function closeSidebar() {
+  sidebar.classList.remove("sidebar-open");
+  document.body.classList.remove("sidebar-open");
+}
+
+hamburgerBtn.addEventListener("click", openSidebar);
+sidebarBackdrop.addEventListener("click", closeSidebar);
+
+document.getElementById("conv-list").addEventListener("click", (e) => {
+  if (e.target.closest(".conv-item") && window.innerWidth <= 768) closeSidebar();
+});
+
+window.addEventListener("resize", () => {
+  if (window.innerWidth > 768) closeSidebar();
+});
+
+const _mobileMQ = window.matchMedia("(max-width: 768px)");
+function _syncHamburger(e) {
+  hamburgerBtn.style.display = e.matches ? "flex" : "none";
+}
+_mobileMQ.addEventListener("change", _syncHamburger);
+_syncHamburger(_mobileMQ);
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -381,7 +398,7 @@ form.addEventListener("submit", async (e) => {
     phraseIdx = (phraseIdx + 1) % phrases.length;
     const textEl = thinkingEl.querySelector(".thinking-text");
     if (textEl) textEl.textContent = phrases[phraseIdx];
-  }, 2000);
+  }, 2500);
 
   let progressSteps = null;
   let finalized     = false;
