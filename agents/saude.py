@@ -90,13 +90,16 @@ class SaudeAgent(BaseAgent):
 
         lines = [
             "Dados de hoje (SysHealth):",
-            f"  Água:        {val(s.get('agua'), 'ml')}",
-            f"  Peso:        {val(s.get('peso'), 'kg')}",
-            f"  Sono:        {val(s.get('sono'))}",
-            f"  Passos:      {val(s.get('passos'))}",
-            f"  Treino:      {val(s.get('treino'))}",
-            f"  Déficit:     {val(s.get('deficit'), ' kcal')}",
-            f"  Proteína:    {val(s.get('proteina'), 'g')}",
-            f"  Tirzepatida: {'✓ tomada' if s.get('tirzepatida') else '✗ não registrada'}",
+            f"  Água:        {val(s.get('agua_hoje_ml'), ' ml')}",
+            f"  Peso:        {val(s.get('peso_kg'), ' kg')}",
+            f"  Sono:        {val(s.get('sono_horas'), ' h')}",
+            f"  Passos:      {val(s.get('passos_hoje'))}",
+            f"  Treino:      {val(s.get('treino_hoje'))}",
+            f"  Déficit:     {val(s.get('deficit_calorico'), ' kcal')}",
+            f"  Proteína:    {val(s.get('proteina_g'), ' g')}",
+            f"  Carboidrato: {val(s.get('carboidrato_g'), ' g')}",
+            f"  HRV:         {val(s.get('hrv'), ' ms')}",
+            f"  Fadiga:      {val(s.get('fadiga'))}",
+            f"  Tirzepatida: {'✓ tomada' if s.get('tirzepatida_hoje') else '✗ não registrada'}",
         ]
         return "\n".join(lines)
