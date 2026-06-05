@@ -19,12 +19,50 @@ class Complexity(Enum):
     HEAVY  = "heavy"
 
 
+# ── Message normalisation helpers ────────────────────────────────────────────
+
+def _text_only_messages(messages: list[dict]) -> list[dict]:
+    """Flatten multipart content to plain text for non-vision providers."""
+    result = []
+    for m in messages:
+        content = m["content"]
+        if isinstance(content, list):
+            texts = [p["text"] for p in content if p.get("type") == "text"]
+            if any(p.get("type") == "image" for p in content):
+                texts.append("[Nota: imagem anexada não suportada por este modelo]")
+            result.append({"role": m["role"], "content": " ".join(texts)})
+        else:
+            result.append(m)
+    return result
+
+
+def _build_gemini_contents(messages: list[dict]) -> list[dict]:
+    """Convert messages to Gemini contents format with vision support."""
+    contents = []
+    for m in messages:
+        if m["role"] == "system":
+            continue
+        role = "model" if m["role"] == "assistant" else "user"
+        content = m["content"]
+        if isinstance(content, str):
+            parts = [{"text": content}]
+        else:
+            parts = []
+            for p in content:
+                if p.get("type") == "text":
+                    parts.append({"text": p["text"]})
+                elif p.get("type") == "image":
+                    parts.append({"inline_data": {"mime_type": p["mime_type"], "data": p["data"]}})
+        contents.append({"role": role, "parts": parts})
+    return contents
+
+
 # ── Blocking providers ────────────────────────────────────────────────────────
 
 def _call_ollama(messages: list[dict]) -> str:
     payload = json.dumps({
         "model": "llama3",
-        "messages": messages,
+        "messages": _text_only_messages(messages),
         "stream": False,
     }).encode()
     req = urllib.request.Request(
@@ -43,7 +81,7 @@ def _call_groq(messages: list[dict]) -> str:
     client = Groq(api_key=GROQ_API_KEY)
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=messages,
+        messages=_text_only_messages(messages),
     )
     return resp.choices[0].message.content
 
@@ -55,11 +93,7 @@ def _call_gemini(messages: list[dict]) -> str:
     genai.configure(api_key=GEMINI_API_KEY)
 
     system_content = next((m["content"] for m in messages if m["role"] == "system"), None)
-    contents = [
-        {"role": "model" if m["role"] == "assistant" else "user",
-         "parts": [{"text": m["content"]}]}
-        for m in messages if m["role"] != "system"
-    ]
+    contents = _build_gemini_contents(messages)
     model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=system_content)
     return model.generate_content(contents).text
 
@@ -69,7 +103,7 @@ def _call_gemini(messages: list[dict]) -> str:
 def _stream_ollama(messages: list[dict]) -> Generator[str, None, None]:
     payload = json.dumps({
         "model": "llama3",
-        "messages": messages,
+        "messages": _text_only_messages(messages),
         "stream": True,
     }).encode()
     req = urllib.request.Request(
@@ -97,7 +131,7 @@ def _stream_groq(messages: list[dict]) -> Generator[str, None, None]:
     client = Groq(api_key=GROQ_API_KEY)
     stream = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=messages,
+        messages=_text_only_messages(messages),
         stream=True,
     )
     for chunk in stream:
@@ -111,14 +145,9 @@ def _stream_gemini(messages: list[dict]) -> Generator[str, None, None]:
         raise ValueError("GEMINI_API_KEY not set")
     import google.generativeai as genai
     genai.configure(api_key=GEMINI_API_KEY)
-
     system_content = next((m["content"] for m in messages if m["role"] == "system"), None)
-    contents = [
-        {"role": "model" if m["role"] == "assistant" else "user",
-         "parts": [{"text": m["content"]}]}
-        for m in messages if m["role"] != "system"
-    ]
-    model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=system_content)
+    contents = _build_gemini_contents(messages)
+    model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=system_content)    
     for chunk in model.generate_content(contents, stream=True):
         token = chunk.text
         if token:

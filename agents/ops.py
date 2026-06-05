@@ -195,7 +195,7 @@ class OpsAgent(BaseAgent):
             + [{"role": "user", "content": message}]
         )
 
-    def process(self, message: str, session_id: str) -> str:
+    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
         action, service = _parse(message)
 
         if action == "status":
@@ -204,9 +204,9 @@ class OpsAgent(BaseAgent):
         if action in ("start", "stop", "restart") and service:
             return _format_sc_result(action, service, _run_sc(action, service))
 
-        return get_completion(self._build_messages(message, session_id), self.complexity)
+        return get_completion(self._build_messages(message, session_id, image_b64), self.complexity)
 
-    def stream(self, message: str, session_id: str) -> Generator:
+    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator:
         action, service = _parse(message)
 
         if action == "status":
@@ -219,4 +219,4 @@ class OpsAgent(BaseAgent):
             yield _format_sc_result(action, service, _run_sc(action, service))
             return
 
-        yield from stream_completion(self._build_messages(message, session_id), self.complexity)
+        yield from stream_completion(self._build_messages(message, session_id, image_b64), self.complexity)

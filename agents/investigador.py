@@ -83,7 +83,7 @@ class InvestigadorAgent(BaseAgent):
             {"role": "user", "content": user_content},
         ]
 
-    def process(self, message: str, session_id: str) -> str:
+    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
         plano = self._plan(message)
         resultados = {}
         for ferramenta in plano.get("ferramentas", []):
@@ -96,7 +96,7 @@ class InvestigadorAgent(BaseAgent):
                     resultados[nome] = {"erro": str(exc)}
         return get_completion(self._build_synthesize_messages(message, resultados), self.complexity)
 
-    def stream(self, message: str, session_id: str) -> Generator:
+    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator:
         # Phase 1 — PLAN
         yield {"progress": "🔍 Analisando pergunta e planejando investigação..."}
         plano = self._plan(message)

@@ -133,13 +133,13 @@ class AnalistaAgent(BaseAgent):
             {"role": "user", "content": user_content},
         ]
 
-    def process(self, message: str, session_id: str) -> str:
+    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
         code = self._generate_code(message)
         result = execute_code(code)
         messages = self._build_interpret_messages(message, code, result)
         return get_completion(messages, self.complexity)
 
-    def stream(self, message: str, session_id: str) -> Generator:
+    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator:
         # Phase 1 — GENERATE
         yield {"progress": "🧠 Gerando código de análise..."}
         code = self._generate_code(message)

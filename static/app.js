@@ -126,6 +126,8 @@ Object.entries(AGENT_META).forEach(([key, meta]) => {
   btn.appendChild(labelSpan);
   btn.addEventListener("click", () => {
     updateBadge(key);
+    state.agentLocked = true;
+    agentBadge.classList.add("locked");
     agentDropdown.setAttribute("hidden", "");
   });
   agentDropdown.appendChild(btn);
@@ -293,7 +295,7 @@ fileInput.addEventListener("change", async () => {
       const res  = await fetch("/upload/image", { method: "POST", body: fd });
       const data = await res.json();
       if (data.success) {
-        attachedFile = { type: "image", filename: data.filename, data: data.base64 };
+        attachedFile = { type: "image", filename: data.filename, image_id: data.image_id };
       } else {
         clearFileChip();
         appendSystemMessage(`❌ Erro: ${data.error}`);
@@ -491,12 +493,13 @@ form.addEventListener("submit", async (e) => {
 
   // Build message with attachment if present (leitor PDF is handled server-side)
   let messageToSend = message;
+  let _imageId = null;
   if (attachedFile) {
     const att = attachedFile;
     const isLeitorPdf = att.type === "pdf" && agentSnap === "leitor";
     if (!isLeitorPdf) {
       if (att.type === "image") {
-        messageToSend = `[Imagem: ${att.filename}]\n${att.data}\n\n${message}`;
+        _imageId = att.image_id;
       } else if (att.type === "pdf") {
         messageToSend = `[Documento PDF: ${att.filename} — ${att.pages} pág.]\n${att.text}\n\n${message}`;
       } else if (att.type === "txt") {
@@ -507,6 +510,7 @@ form.addEventListener("submit", async (e) => {
   }
   const params = new URLSearchParams({ message: messageToSend, agent: agentSnap, session_id: sessionId });
   if (state.currentConvId) params.set("conv_id", state.currentConvId);
+  if (_imageId) params.set("image_id", _imageId);
   const es = new EventSource(`/chat/stream?${params}`);
 
   es.onmessage = (event) => {
@@ -732,6 +736,7 @@ function makeStatusPill(name, info) {
 
 // ── Init ──────────────────────────────────────────────
 updateBadge("conhecimento");
+attachBtn.style.display = "flex";
 loadConversations();
 loadStatus();
 setInterval(loadStatus, 30_000);

@@ -63,6 +63,9 @@ def classify_agent(message: str) -> str:
 _PDF_SESSIONS: dict = {}
 _PDF_MAX_SESSIONS = 50
 
+_IMAGE_SESSIONS: dict[str, dict] = {}
+_IMAGE_MAX_SESSIONS = 50
+
 AGENTS = {
     "saude": SaudeAgent(db=db),
     "conhecimento": ConhecimentoAgent(db=db),
@@ -202,10 +205,14 @@ def upload_image():
     import base64
     mime = "image/jpeg" if ext in {".jpg", ".jpeg"} else "image/png"
     b64 = base64.b64encode(file_bytes).decode()
+    image_id = str(uuid.uuid4())
+    if len(_IMAGE_SESSIONS) >= _IMAGE_MAX_SESSIONS:
+        del _IMAGE_SESSIONS[next(iter(_IMAGE_SESSIONS))]
+    _IMAGE_SESSIONS[image_id] = {"base64": b64, "mime": mime, "filename": f.filename}
     return jsonify({
         "success":  True,
+        "image_id": image_id,
         "filename": f.filename,
-        "base64":   f"data:{mime};base64,{b64}",
         "size_kb":  round(len(file_bytes) / 1024),
     })
 
@@ -249,6 +256,12 @@ def chat():
     message = data.get("message", "").strip()
     agent_name = data.get("agent", "conhecimento").lower()
     session_id = data.get("session_id") or str(uuid.uuid4())
+    image_id = data.get("image_id") or None
+    image_b64 = None
+    if image_id:
+        img = _IMAGE_SESSIONS.pop(image_id, None)
+        if img:
+            image_b64 = f"data:{img['mime']};base64,{img['base64']}"
 
     if not message:
         return jsonify({"error": "Mensagem vazia"}), 400
@@ -257,7 +270,7 @@ def chat():
     if agent is None:
         return jsonify({"error": f"Agente '{agent_name}' não encontrado"}), 404
 
-    response = agent.process(message, session_id)
+    response = agent.process(message, session_id, image_b64=image_b64)
     db.save_message(agent=agent_name, role="user", content=message, session_id=session_id)
     db.save_message(agent=agent_name, role="assistant", content=response, session_id=session_id)
 
@@ -270,6 +283,16 @@ def chat_stream():
     agent_name = request.args.get("agent", "conhecimento").lower()
     session_id = request.args.get("session_id") or str(uuid.uuid4())
     conv_id    = request.args.get("conv_id") or None
+    image_id = request.args.get("image_id") or None
+    image_b64 = None
+    if image_id:
+        img = _IMAGE_SESSIONS.pop(image_id, None)
+        if img:
+            image_b64 = f"data:{img['mime']};base64,{img['base64']}"
+    if image_id:
+        img = _IMAGE_SESSIONS.pop(image_id, None)
+        if img:
+            image_b64 = f"data:{img['mime']};base64,{img['base64']}"
 
     def _sse(payload: dict) -> str:
         return f"data: {json.dumps(payload)}\n\n"
@@ -291,7 +314,7 @@ def chat_stream():
         full_response: list[str] = []
         provider = "unknown"
         try:
-            for item in agent.stream(message, session_id):
+            for item in agent.stream(message, session_id, image_b64=image_b64):
                 if isinstance(item, dict):
                     if "progress" in item:
                         yield _sse({"progress": item["progress"]})
