@@ -8,3 +8,122 @@
 2026-06-04T18:25:28.516 INFO  service - Started process python (16296).
 2026-06-04T18:25:28.541 INFO  service - Service started successfully.
 2026-06-04T18:25:28.728 INFO  console - Service 'Hermes Lite (HermesLite)' started successfully.
+2026-06-04T20:35:22.860 WARN  service - Child process 'python (16296)' finished with code 1.
+2026-06-04T20:35:53.200 DEBUG console - Starting WinSW in service mode.
+2026-06-04T20:35:53.264 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T20:35:53.283 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T20:35:53.330 INFO  service - Started process python (11240).
+2026-06-04T20:35:53.357 INFO  service - Service started successfully.
+2026-06-04T21:03:47.012 INFO  service - Stopping HermesLite
+2026-06-04T21:03:47.015 DEBUG service - ProcessKill 11240
+2026-06-04T21:03:49.689 INFO  service - Child process 'python (11240)' canceled with code 0.
+2026-06-04T21:03:49.703 INFO  service - Finished HermesLite
+2026-06-04T21:03:49.703 INFO  service - Service stopped successfully.
+2026-06-04T21:03:50.195 DEBUG console - Starting WinSW in service mode.
+2026-06-04T21:03:50.246 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T21:03:50.262 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T21:03:50.303 INFO  service - Started process python (23868).
+2026-06-04T21:03:50.328 INFO  service - Service started successfully.
+2026-06-04T21:08:30.054 INFO  service - Stopping HermesLite
+2026-06-04T21:08:30.057 DEBUG service - ProcessKill 23868
+2026-06-04T21:08:32.945 INFO  service - Child process 'python (23868)' canceled with code 0.
+2026-06-04T21:08:32.961 INFO  service - Finished HermesLite
+2026-06-04T21:08:32.961 INFO  service - Service stopped successfully.
+2026-06-04T21:08:33.494 DEBUG console - Starting WinSW in service mode.
+2026-06-04T21:08:33.543 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T21:08:33.559 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T21:08:33.600 INFO  service - Started process python (20884).
+2026-06-04T21:08:33.624 INFO  service - Service started successfully.
+2026-06-04T21:11:25.629 INFO  service - Stopping HermesLite
+2026-06-04T21:11:25.631 DEBUG service - ProcessKill 20884
+2026-06-04T21:11:28.008 INFO  service - Child process 'python (20884)' canceled with code 0.
+2026-06-04T21:11:28.023 INFO  service - Finished HermesLite
+2026-06-04T21:11:28.023 INFO  service - Service stopped successfully.
+2026-06-04T21:11:28.542 DEBUG console - Starting WinSW in service mode.
+2026-06-04T21:11:28.592 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T21:11:28.608 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T21:11:28.649 INFO  service - Started process python (24840).
+2026-06-04T21:11:28.674 INFO  service - Service started successfully.
+2026-06-04T21:21:25.464 INFO  service - Stopping HermesLite
+2026-06-04T21:21:25.466 DEBUG service - ProcessKill 24840
+2026-06-04T21:21:28.358 INFO  service - Child process 'python (24840)' canceled with code 0.
+2026-06-04T21:21:28.370 INFO  service - Finished HermesLite
+2026-06-04T21:21:28.371 INFO  service - Service stopped successfully.
+2026-06-04T21:21:28.916 DEBUG console - Starting WinSW in service mode.
+2026-06-04T21:21:28.965 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T21:21:28.981 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T21:21:29.021 INFO  service - Started process python (23868).
+2026-06-04T21:21:29.045 INFO  service - Service started successfully.
+2026-06-04T21:26:44.528 INFO  service - Stopping HermesLite
+2026-06-04T21:26:44.530 DEBUG service - ProcessKill 23868
+2026-06-04T21:26:47.322 INFO  service - Child process 'python (23868)' canceled with code 0.
+2026-06-04T21:26:47.336 INFO  service - Finished HermesLite
+2026-06-04T21:26:47.336 INFO  service - Service stopped successfully.
+2026-06-04T21:26:47.742 DEBUG console - Starting WinSW in service mode.
+2026-06-04T21:26:47.791 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T21:26:47.807 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T21:26:47.849 INFO  service - Started process python (18664).
+2026-06-04T21:26:47.873 INFO  service - Service started successfully.
+2026-06-04T21:30:20.217 INFO  service - Stopping HermesLite
+2026-06-04T21:30:20.219 DEBUG service - ProcessKill 18664
+2026-06-04T21:30:22.855 INFO  service - Child process 'python (18664)' canceled with code 0.
+2026-06-04T21:30:22.868 INFO  service - Finished HermesLite
+2026-06-04T21:30:22.869 INFO  service - Service stopped successfully.
+2026-06-04T21:30:23.402 DEBUG console - Starting WinSW in service mode.
+2026-06-04T21:30:23.451 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T21:30:23.467 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T21:30:23.509 INFO  service - Started process python (23812).
+2026-06-04T21:30:23.533 INFO  service - Service started successfully.
+2026-06-04T21:42:54.780 INFO  service - Stopping HermesLite
+2026-06-04T21:42:54.782 DEBUG service - ProcessKill 23812
+2026-06-04T21:42:56.998 INFO  service - Child process 'python (23812)' canceled with code 0.
+2026-06-04T21:42:57.013 INFO  service - Finished HermesLite
+2026-06-04T21:42:57.014 INFO  service - Service stopped successfully.
+2026-06-04T21:42:57.448 DEBUG console - Starting WinSW in service mode.
+2026-06-04T21:42:57.498 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T21:42:57.514 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T21:42:57.556 INFO  service - Started process python (1680).
+2026-06-04T21:42:57.580 INFO  service - Service started successfully.
+2026-06-04T22:19:32.506 INFO  service - Stopping HermesLite
+2026-06-04T22:19:32.507 DEBUG service - ProcessKill 1680
+2026-06-04T22:19:34.746 INFO  service - Child process 'python (1680)' canceled with code 0.
+2026-06-04T22:19:34.758 INFO  service - Finished HermesLite
+2026-06-04T22:19:34.759 INFO  service - Service stopped successfully.
+2026-06-04T22:20:48.946 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T22:20:48.981 INFO  console - Starting service 'Hermes Lite (HermesLite)'...
+2026-06-04T22:20:49.292 DEBUG console - Starting WinSW in service mode.
+2026-06-04T22:20:49.346 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-04T22:20:49.363 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-04T22:20:49.406 INFO  service - Started process python (11544).
+2026-06-04T22:20:49.432 INFO  service - Service started successfully.
+2026-06-04T22:20:49.615 INFO  console - Service 'Hermes Lite (HermesLite)' started successfully.
+2026-06-05T01:42:07.944 INFO  service - Stopping HermesLite
+2026-06-05T01:42:07.968 DEBUG service - ProcessKill 11544
+2026-06-05T01:42:11.023 INFO  service - Child process 'python (11544)' canceled with code 0.
+2026-06-05T01:42:11.030 INFO  service - Finished HermesLite
+2026-06-05T01:42:11.031 INFO  service - Service was shut down successfully.
+2026-06-05T09:17:15.348 DEBUG console - Starting WinSW in service mode.
+2026-06-05T09:17:15.713 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-05T09:17:15.778 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-05T09:17:15.876 INFO  service - Started process python (8724).
+2026-06-05T09:17:15.921 INFO  service - Service started successfully.
+2026-06-05T11:44:31.780 INFO  service - Stopping HermesLite
+2026-06-05T11:44:31.782 DEBUG service - ProcessKill 8724
+2026-06-05T11:44:34.600 INFO  service - Child process 'python (8724)' canceled with code 0.
+2026-06-05T11:44:34.620 INFO  service - Finished HermesLite
+2026-06-05T11:44:34.621 INFO  service - Service stopped successfully.
+2026-06-05T11:44:35.163 DEBUG console - Starting WinSW in service mode.
+2026-06-05T11:44:35.214 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-05T11:44:35.230 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-05T11:44:35.273 INFO  service - Started process python (19932).
+2026-06-05T11:44:35.312 INFO  service - Service started successfully.
+2026-06-05T12:00:50.360 INFO  service - Stopping HermesLite
+2026-06-05T12:00:50.362 DEBUG service - ProcessKill 19932
+2026-06-05T12:00:53.364 INFO  service - Child process 'python (19932)' canceled with code 0.
+2026-06-05T12:00:53.378 INFO  service - Finished HermesLite
+2026-06-05T12:00:53.379 INFO  service - Service stopped successfully.
+2026-06-05T12:00:53.750 DEBUG console - Starting WinSW in service mode.
+2026-06-05T12:00:53.800 INFO  console - Service 'Hermes Lite (HermesLite)' was refreshed successfully.
+2026-06-05T12:00:53.817 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-05T12:00:53.858 INFO  service - Started process python (21184).
+2026-06-05T12:00:53.882 INFO  service - Service started successfully.

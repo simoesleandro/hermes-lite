@@ -18,3 +18,21 @@ KeyboardInterrupt
 2026-06-04 09:16:07 ERROR cronos.notifier — Discord webhook falhou: <urlopen error [Errno 11001] getaddrinfo failed>
 2026-06-04 09:16:07 INFO cronos.scheduler — Scheduler iniciado — checando a cada 30s.
 2026-06-04 09:30:07 INFO cronos.scheduler — Executando tarefa: briefing
+2026-06-04 22:00:10 INFO cronos.scheduler — Executando tarefa: resumo_saude
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\Leand\onedrive\desktop\hermes-lite\cronos\cronos.py", line 82, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Leand\onedrive\desktop\hermes-lite\cronos\cronos.py", line 78, in main
+    run_loop(_TASKS)
+    ~~~~~~~~^^^^^^^^
+  File "C:\Users\Leand\onedrive\desktop\hermes-lite\cronos\scheduler.py", line 38, in run_loop
+    time.sleep(30)
+    ~~~~~~~~~~^^^^
+KeyboardInterrupt
+2026-06-05 09:17:16 INFO cronos — Cronos iniciando...
+2026-06-05 09:17:16 ERROR cronos.notifier — Discord webhook falhou: <urlopen error [Errno 11001] getaddrinfo failed>
+2026-06-05 09:17:16 INFO cronos.scheduler — Scheduler iniciado — checando a cada 30s.
+2026-06-05 09:30:16 INFO cronos.scheduler — Executando tarefa: briefing

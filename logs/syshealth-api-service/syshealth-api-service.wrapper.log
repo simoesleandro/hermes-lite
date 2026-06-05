@@ -70,3 +70,28 @@ System.ComponentModel.Win32Exception (2): An error occurred trying to start proc
 2026-06-04T18:30:23.240 INFO  service - Started process python (17604).
 2026-06-04T18:30:23.266 INFO  service - Service started successfully.
 2026-06-04T18:30:23.578 WARN  service - Child process 'python (17604)' finished with code 1.
+2026-06-05T09:17:15.356 DEBUG console - Starting WinSW in service mode.
+2026-06-05T09:17:15.707 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-05T09:17:15.827 INFO  service - Started process python (8524).
+2026-06-05T09:17:15.876 INFO  service - Service started successfully.
+2026-06-05T09:17:17.515 WARN  service - Child process 'python (8524)' finished with code 1.
+2026-06-05T09:17:48.278 DEBUG console - Starting WinSW in service mode.
+2026-06-05T09:17:48.518 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-05T09:17:49.207 INFO  service - Started process python (15136).
+2026-06-05T09:17:49.376 INFO  service - Service started successfully.
+2026-06-05T09:17:49.948 WARN  service - Child process 'python (15136)' finished with code 1.
+2026-06-05T09:18:50.268 DEBUG console - Starting WinSW in service mode.
+2026-06-05T09:18:50.319 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-05T09:18:50.362 INFO  service - Started process python (17208).
+2026-06-05T09:18:50.387 INFO  service - Service started successfully.
+2026-06-05T09:18:51.744 WARN  service - Child process 'python (17208)' finished with code 1.
+2026-06-05T09:23:22.151 DEBUG console - Starting WinSW in service mode.
+2026-06-05T09:23:23.649 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-05T09:23:23.730 INFO  service - Started process python (21876).
+2026-06-05T09:23:23.774 INFO  service - Service started successfully.
+2026-06-05T09:23:24.226 WARN  service - Child process 'python (21876)' finished with code 1.
+2026-06-05T09:23:26.762 DEBUG console - Starting WinSW in service mode.
+2026-06-05T09:23:26.822 INFO  service - Starting C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe
+2026-06-05T09:23:26.873 INFO  service - Started process python (21972).
+2026-06-05T09:23:26.903 INFO  service - Service started successfully.
+2026-06-05T09:23:27.272 WARN  service - Child process 'python (21972)' finished with code 1.
