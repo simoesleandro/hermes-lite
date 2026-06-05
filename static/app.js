@@ -265,11 +265,12 @@ form.addEventListener("submit", async (e) => {
   sendBtn.style.display = "none";
   stopBtn.style.display = "flex";
 
-  agentStatus.textContent = STATUS_MSG[state.currentAgent] || "Pensando...";
-  agentStatus.removeAttribute("hidden");
-
   const agentSnap = state.currentAgent;
   const meta      = AGENT_META[agentSnap];
+
+  agentStatus.innerHTML = `<div class="thinking-dots"><span></span><span></span><span></span></div><span class="thinking-text">${STATUS_MSG[agentSnap] || "Pensando..."}</span>`;
+  agentStatus.classList.remove("thinking-fade-out");
+  agentStatus.removeAttribute("hidden");
 
   // Build streaming bubble
   const row = document.createElement("div");
@@ -298,6 +299,9 @@ form.addEventListener("submit", async (e) => {
   let progressSteps = null;
   let finalized     = false;
   let tokenBuffer   = [];
+  let rawText       = "";
+  let rafId         = null;
+  let firstToken    = true;
   let streamDone    = false;
   let providerRef   = null;
 
@@ -317,9 +321,10 @@ form.addEventListener("submit", async (e) => {
   function finalizeUI(provider) {
     if (finalized) return;
     finalized = true;
+    if (rafId) cancelAnimationFrame(rafId);
     bubble.classList.remove("streaming");
-    if (body.textContent) {
-      body.innerHTML = marked.parse(body.textContent);
+    if (rawText) {
+      body.innerHTML = marked.parse(rawText);
       _renderB64Images(body);
     }
 
@@ -353,19 +358,23 @@ form.addEventListener("submit", async (e) => {
     if (typeof loadConversations === "function") loadConversations();
   }
 
-  // Drain buffer at 12ms per token
   function drainBuffer() {
     if (tokenBuffer.length) {
-      body.textContent += tokenBuffer.shift();
+      rawText += tokenBuffer.splice(0).join("");
+      body.innerHTML = marked.parse(rawText);
       scrollToBottom();
-      setTimeout(drainBuffer, 12);
-    } else if (!streamDone) {
-      setTimeout(drainBuffer, 12);
+    }
+    if (!streamDone) {
+      rafId = requestAnimationFrame(drainBuffer);
+    } else if (!tokenBuffer.length) {
+      finalizeUI(providerRef);
     } else {
+      rawText += tokenBuffer.splice(0).join("");
+      body.innerHTML = marked.parse(rawText);
       finalizeUI(providerRef);
     }
   }
-  drainBuffer();
+  rafId = requestAnimationFrame(drainBuffer);
 
   function handleStop() {
     streamDone = true;
@@ -392,6 +401,9 @@ form.addEventListener("submit", async (e) => {
     }
 
     if (data.progress) {
+      const textEl = agentStatus.querySelector(".thinking-text");
+      if (textEl) textEl.textContent = data.progress;
+
       if (!progressSteps) {
         progressSteps = document.createElement("div");
         progressSteps.classList.add("progress-steps");
@@ -415,26 +427,26 @@ form.addEventListener("submit", async (e) => {
 
     if (data.token) {
       tokenBuffer.push(data.token);
+      if (firstToken) {
+        firstToken = false;
+        agentStatus.classList.add("thinking-fade-out");
+        setTimeout(() => agentStatus.setAttribute("hidden", ""), 350);
+      }
     }
 
     if (data.done) {
       providerRef = data.provider;
-      streamDone  = true;
+      if (data.full_response && !rawText && !tokenBuffer.length) {
+        rawText = data.full_response;
+      }
+      streamDone = true;
       es.close();
-      // Force flush 2s after stream ends if buffer hasn't drained
-      setTimeout(() => {
-        if (tokenBuffer.length) {
-          body.textContent += tokenBuffer.join("");
-          tokenBuffer = [];
-        }
-        finalizeUI(providerRef);
-      }, 2000);
     }
   };
 
   es.onerror = () => {
-    if (!body.textContent && !tokenBuffer.length) {
-      body.textContent = "Erro de conexão com o servidor.";
+    if (!rawText && !tokenBuffer.length) {
+      body.innerHTML = "Erro de conexão com o servidor.";
     }
     streamDone = true;
     tokenBuffer = [];
@@ -532,7 +544,69 @@ function newConversation() {
 
 document.getElementById("new-conv-btn").addEventListener("click", newConversation);
 
+// ── Status panel ─────────────────────────────────────
+async function loadStatus() {
+  const panel = document.getElementById("sidebar-status");
+  if (!panel) return;
+  try {
+    const res  = await fetch("/api/status");
+    const data = await res.json();
+    renderStatusPanel(panel, data);
+  } catch { /* silent */ }
+}
+
+function renderStatusPanel(panel, data) {
+  panel.innerHTML = "";
+  const sections = [
+    { label: "Provedores", entries: data.providers },
+    { label: "Serviços",   entries: data.services  },
+  ];
+  for (const { label, entries } of sections) {
+    if (!entries || !Object.keys(entries).length) continue;
+    const section = document.createElement("div");
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "status-section-label";
+    labelEl.textContent = label;
+
+    const pills = document.createElement("div");
+    pills.className = "status-pills";
+    for (const [name, info] of Object.entries(entries)) {
+      pills.appendChild(makeStatusPill(name, info));
+    }
+    section.appendChild(labelEl);
+    section.appendChild(pills);
+    panel.appendChild(section);
+  }
+}
+
+function makeStatusPill(name, info) {
+  const isOnline = info.status === "online";
+  const pill = document.createElement("span");
+  pill.className = `status-pill ${isOnline ? "online" : "offline"}`;
+
+  const dot = document.createElement("span");
+  dot.className = "status-pill-dot";
+
+  const label = document.createElement("span");
+  label.textContent = name;
+
+  pill.appendChild(dot);
+  pill.appendChild(label);
+
+  if (info.latency_ms != null) {
+    const lat = document.createElement("span");
+    lat.className = "status-pill-latency";
+    lat.textContent = `${info.latency_ms}ms`;
+    pill.appendChild(lat);
+  }
+
+  return pill;
+}
+
 // ── Init ──────────────────────────────────────────────
 updateBadge("conhecimento");
 loadConversations();
+loadStatus();
+setInterval(loadStatus, 30_000);
 input.focus();

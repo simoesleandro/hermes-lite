@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import site
 import subprocess
 import sys
 import tempfile
@@ -17,22 +18,11 @@ BLOCKED = [
 
 def _build_script(code_b64: str) -> str:
     return f"""import sys, io, base64 as _b64, json as _json, traceback as _tb
-import pandas, numpy
-import matplotlib as _mpl
-_mpl.use('Agg')
-import matplotlib.pyplot as plt
-import seaborn
 import sqlite3, json, datetime, math, statistics, collections, itertools, re, csv
+import time
 
 SENTINELA_DB = {repr(SENTINELA_DB)}
 SYSHEALTH_DB = {repr(SYSHEALTH_DB)}
-
-
-def save_chart():
-    _buf = io.BytesIO()
-    plt.savefig(_buf, format='png', dpi=150, bbox_inches='tight', facecolor='#0d1117')
-    _buf.seek(0)
-    return _b64.b64encode(_buf.read()).decode()
 
 
 _captured = io.StringIO()
@@ -40,6 +30,7 @@ sys.stdout = _captured
 _chart_b64 = None
 _exec_error = None
 
+_t0 = time.time()
 _code = _b64.b64decode({repr(code_b64)}).decode('utf-8')
 try:
     exec(compile(_code, '<analista>', 'exec'), globals())
@@ -47,10 +38,18 @@ except Exception as _exc:
     _exec_error = ''.join(_tb.format_exception(type(_exc), _exc, _exc.__traceback__))
 finally:
     sys.stdout = sys.__stdout__
+    print(f"[sandbox] tempo: {{time.time()-_t0:.1f}}s", file=sys.__stderr__)
 
-if _exec_error is None and plt.get_fignums():
-    _chart_b64 = save_chart()
-    plt.close('all')
+try:
+    import matplotlib.pyplot as _plt
+    if _exec_error is None and _plt.get_fignums():
+        _buf = io.BytesIO()
+        _plt.savefig(_buf, format='png', dpi=150, bbox_inches='tight', facecolor='#0d1117')
+        _buf.seek(0)
+        _chart_b64 = _b64.b64encode(_buf.read()).decode()
+        _plt.close('all')
+except Exception:
+    pass
 
 print(_json.dumps({{
     "success": _exec_error is None,
@@ -61,7 +60,7 @@ print(_json.dumps({{
 """
 
 
-def execute_code(code: str, timeout: int = 30) -> dict:
+def execute_code(code: str, timeout: int = 60) -> dict:
     for blocked in BLOCKED:
         if blocked in code:
             return {
@@ -82,11 +81,17 @@ def execute_code(code: str, timeout: int = 30) -> dict:
             f.write(script)
             tmp = f.name
 
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.pathsep.join([
+            r"C:\Users\Leand\AppData\Local\Programs\Python\Python313\Lib\site-packages",
+            r"C:\Users\Leand\AppData\Roaming\Python\Python313\site-packages",
+        ])
         result = subprocess.run(
             [sys.executable, tmp],
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
 
         stdout = result.stdout.strip()

@@ -323,8 +323,11 @@ html, body {
 .agent-option:hover   { background: rgba(255,255,255,0.06); color: var(--text); }
 .agent-option.current { color: var(--accent-lt); background: var(--accent-dim); }
 
-/* ── Agent status message ────────────────────────────── */
+/* ── Agent status / thinking indicator ──────────────── */
 .agent-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 0.74rem;
   color: var(--text-sub);
   padding: 2px 2px;
@@ -332,6 +335,23 @@ html, body {
 }
 .agent-status[hidden] { display: none; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+
+.thinking-fade-out { animation: thinkingFadeOut 0.35s ease forwards; }
+@keyframes thinkingFadeOut { to { opacity: 0; transform: translateY(-3px); } }
+
+.thinking-dots { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
+.thinking-dots span {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--accent-lt);
+  animation: thinkingPulse 1.4s ease-in-out infinite;
+}
+.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes thinkingPulse {
+  0%, 60%, 100% { transform: scale(0.6); opacity: 0.3; }
+  30%           { transform: scale(1);   opacity: 1; }
+}
 
 /* ── Messages ────────────────────────────────────────── */
 .msg-row { display: flex; gap: 12px; margin-bottom: 22px; align-items: flex-start; }
@@ -417,3 +437,66 @@ html, body {
 
 /* ── Chart output ────────────────────────────────────── */
 .chart-output { width: 100%; border-radius: 8px; margin-bottom: 12px; display: block; }
+
+/* ── Sidebar status panel ────────────────────────────── */
+.sidebar-status {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-section-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.status-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 20px;
+  font-size: 0.67rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  transition: all 0.3s ease;
+}
+.status-pill.online {
+  background: rgba(74, 222, 128, 0.08);
+  border-color: rgba(74, 222, 128, 0.2);
+  color: rgba(74, 222, 128, 0.9);
+}
+.status-pill.offline {
+  background: rgba(248, 113, 113, 0.06);
+  border-color: rgba(248, 113, 113, 0.15);
+  color: rgba(248, 113, 113, 0.6);
+}
+
+.status-pill-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-pill.online .status-pill-dot {
+  background: #4ade80;
+  animation: statusPulse 2s ease-in-out infinite;
+}
+.status-pill.offline .status-pill-dot { background: #f87171; }
+
+@keyframes statusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); }
+  50%       { box-shadow: 0 0 0 4px rgba(74, 222, 128, 0); }
+}
+
+.status-pill-latency { opacity: 0.65; font-size: 0.6rem; }

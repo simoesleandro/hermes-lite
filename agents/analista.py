@@ -6,10 +6,11 @@ from services.analista_sandbox import execute_code
 from db.database import Database
 
 
-_GENERATE_SYSTEM = """Você é um analista de dados especialista em Python.
-Gere código Python para responder a pergunta do usuário.
+_GENERATE_SYSTEM = """OUTPUT FORMAT: Python code only. Your entire response is passed verbatim to Python exec(). Any non-code text (explanations, markdown, comments, phrases like "I don't have access") causes a SyntaxError and breaks the pipeline.
 
-Bases de dados disponíveis (variáveis já definidas no ambiente):
+Os bancos de dados abaixo EXISTEM em disco neste momento e estão acessíveis via sqlite3. NÃO diga que não tem acesso — você tem. Use as variáveis diretamente.
+
+Bases de dados disponíveis (variáveis já definidas no ambiente de execução):
 - SENTINELA_DB: SQLite com contratos públicos do Rio de Janeiro
   Tabelas:
     fornecedores(ni, tipo_pessoa, razao_social, primeira_vez, atualizado_em)
@@ -22,7 +23,7 @@ Bases de dados disponíveis (variáveis já definidas no ambiente):
   JOINs corretos:
     contratos.fornecedor_ni = fornecedores.ni
     contratos.orgao_cnpj    = orgaos.cnpj
-  Exemplos corretos:
+  Exemplos de SQL correto:
     SELECT f.razao_social, SUM(c.valor_global) AS total
     FROM contratos c
     JOIN fornecedores f ON c.fornecedor_ni = f.ni
@@ -31,14 +32,35 @@ Bases de dados disponíveis (variáveis já definidas no ambiente):
     SELECT * FROM alertas
     WHERE severidade = 'alta' ORDER BY id DESC;
 
+  Exemplo de código Python correto (siga este padrão):
+    import sqlite3
+    sql = ('SELECT f.razao_social, SUM(c.valor_global) AS total '
+           'FROM contratos c JOIN fornecedores f ON c.fornecedor_ni = f.ni '
+           'GROUP BY f.razao_social ORDER BY total DESC LIMIT 5')
+    conn = sqlite3.connect(SENTINELA_DB)
+    rows = conn.execute(sql).fetchall()
+    conn.close()
+    for i, (nome, total) in enumerate(rows, 1):
+        print(f"{i}. {nome}: R$ {total:,.2f}")
+    import matplotlib.pyplot as plt
+    nomes = [r[0][:30] for r in rows]
+    valores = [r[1] for r in rows]
+    plt.style.use('dark_background')
+    fig, ax = plt.subplots(figsize=(10, 5))
+    fig.patch.set_facecolor('#0d1117')
+    ax.set_facecolor('#0d1117')
+    ax.barh(nomes[::-1], valores[::-1], color='#7c3aed')
+    plt.tight_layout()
+
 - SYSHEALTH_DB: SQLite com dados de saúde pessoal
   Tabelas: refeicoes(calorias, proteinas, carboidratos, gorduras, data_hora),
   agua(quantidade_ml, data_hora), medidas(peso, data),
   amazfit_dados(passos, sono_total_min, hrv_ms, data_hora),
   hevy_treinos(titulo, duracao_min, volume_kg, data_hora)
 
-Libs disponíveis: pandas, numpy, matplotlib, seaborn, sqlite3,
-json, datetime, math, statistics, collections, itertools, re, csv
+Libs disponíveis: sqlite3, matplotlib, pandas, numpy,
+json, datetime, math, statistics, collections, itertools, re
+Para banco de dados use sqlite3 diretamente, não pandas.read_sql.
 
 GRÁFICOS — OBRIGATÓRIO:
 SEMPRE gere um gráfico matplotlib ao final de qualquer análise
@@ -56,12 +78,14 @@ Padrão obrigatório de estilo escuro:
 Para dados tabulares: use print() com formatação clara.
 Imprima os dados E gere o gráfico — ambos são capturados.
 
-IMPORTANTE:
-- Gere APENAS o código Python, sem explicações
-- Sem markdown, sem ```python, só o código puro
-- Use sqlite3.connect(SENTINELA_DB) ou sqlite3.connect(SYSHEALTH_DB)
+REGRAS ABSOLUTAS:
+- Use APENAS sqlite3 para banco de dados. NUNCA use pandas. pandas não está disponível no ambiente de execução.
+- Gere APENAS código Python puro — zero explicações, zero comentários, zero markdown
+- Sem ```python, sem nenhum texto antes ou depois do código
+- SENTINELA_DB e SYSHEALTH_DB já existem como variáveis — use diretamente sem redefinir
+- NUNCA escreva "você pode rodar", "instale X", "modifique Y" — o código será executado agora
 - Para datas: datetime.datetime.now(), datetime.datetime.strptime()
-- Código deve ser autocontido e executável"""
+- Código deve ser autocontido e executável do início ao fim"""
 
 
 _INTERPRET_SYSTEM = """Você é um analista de dados.
@@ -91,7 +115,7 @@ class AnalistaAgent(BaseAgent):
             {"role": "system", "content": _GENERATE_SYSTEM},
             {"role": "user", "content": message},
         ]
-        raw = get_completion(messages, self.complexity)
+        raw = get_completion(messages, Complexity.HEAVY)
         return _strip_fences(raw)
 
     def _build_interpret_messages(self, message: str, code: str, result: dict) -> list[dict]:
@@ -119,11 +143,17 @@ class AnalistaAgent(BaseAgent):
         # Phase 1 — GENERATE
         yield {"progress": "🧠 Gerando código de análise..."}
         code = self._generate_code(message)
+        print("=== CÓDIGO GERADO ===")
+        print(code)
+        print("=== FIM CÓDIGO ===")
         yield {"progress": f"✅ Código gerado ({len(code.splitlines())} linhas)"}
 
         # Phase 2 — EXECUTE
         yield {"progress": "⚙️ Executando análise..."}
         result = execute_code(code)
+        print("=== RESULTADO ===")
+        print(result)
+        print("=== FIM RESULTADO ===")
 
         if not result["success"]:
             yield {"progress": f"❌ Erro na execução: {str(result.get('error', ''))[:120]}"}
