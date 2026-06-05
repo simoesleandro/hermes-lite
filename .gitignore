@@ -5,3 +5,7 @@ db/hermes.db
 .env
 *.db
 .DS_Store
+
+logs/
+vigia-service.err.log
+vigia-service.wrapper.log
