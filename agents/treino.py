@@ -49,7 +49,7 @@ class TreinoAgent(BaseAgent):
     def __init__(self, db: Database):
         super().__init__(db)
 
-    def _build_messages(self, message: str, session_id: str) -> list[dict]:
+    def _build_messages(self, message: str, session_id: str, image_b64: str | None = None) -> list[dict]:
         analise  = self._client.get_analise_treinos(dias=30)
         recentes = self._client.get_treinos_recentes(dias=7)
         corpo    = self._client.get_corpo(dias=90)
@@ -59,17 +59,24 @@ class TreinoAgent(BaseAgent):
         context = self._format_context(analise, recentes, corpo, sono, corridas)
         system = self.system_prompt + (f"\n\n{context}" if context else "")
         history = self.db.get_history_as_messages(self.name, session_id)
+        if image_b64 is not None:
+            user_content = [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
+                {"type": "text", "text": message},
+            ]
+        else:
+            user_content = message
         return (
             [{"role": "system", "content": system}]
             + history
-            + [{"role": "user", "content": message}]
+            + [{"role": "user", "content": user_content}]
         )
 
-    def process(self, message: str, session_id: str) -> str:
-        return get_completion(self._build_messages(message, session_id), self.complexity)
+    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
+        return get_completion(self._build_messages(message, session_id, image_b64), self.complexity)
 
-    def stream(self, message: str, session_id: str) -> Generator[str, None, None]:
-        yield from stream_completion(self._build_messages(message, session_id), self.complexity)
+    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator[str, None, None]:
+        yield from stream_completion(self._build_messages(message, session_id, image_b64), self.complexity)
 
     @staticmethod
     def _format_context(
@@ -177,12 +184,12 @@ class TreinoAgent(BaseAgent):
         # === CORRIDAS (30 dias) ===
         if not corridas.get("offline"):
             lines = ["=== CORRIDAS (30 dias) ==="]
-            total_km  = corridas.get("total_km") or corridas.get("distancia_total")
-            total_ses = corridas.get("total_sessoes") or corridas.get("sessoes")
+            total_km  = corridas.get("distancia_total_km")
+            total_ses = corridas.get("total_corridas")
             lines.append(f"  Total: {v(total_km, 'km')} em {v(total_ses, ' sessões')}")
             historico = corridas.get("historico") or corridas.get("sessoes_lista") or []
             if historico:
-                for c in historico[-8:]:
+                for c in historico[:8]:
                     data   = c.get("data") or "?"
                     dist   = v(c.get("distancia_km") or c.get("distancia"), "km")
                     cal    = v(c.get("calorias"), "kcal")

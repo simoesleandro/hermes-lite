@@ -18,7 +18,7 @@ _OFFLINE_SUMMARY: dict = {
 class SysHealthClient:
     def __init__(self, base_url: str = "http://localhost:5060"):
         self.base_url = base_url.rstrip("/")
-        self._timeout = 3
+        self._timeout = 10
 
     def _get(self, path: str) -> dict | list:
         req = urllib.request.Request(f"{self.base_url}{path}")
