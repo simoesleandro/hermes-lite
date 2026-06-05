@@ -1,16 +1,16 @@
 // ── Agent metadata ────────────────────────────────────
 const AGENT_META = {
-  conhecimento:    { icon: "🧠", label: "Conhecimento" },
-  desenvolvimento: { icon: "💻", label: "Desenvolvimento" },
-  saude:           { icon: "💚", label: "Saúde" },
-  treino:          { icon: "🏋️", label: "Treino" },
-  produtividade:   { icon: "⚡", label: "Produtividade" },
-  sentinela:       { icon: "🔍", label: "Sentinela" },
-  juridico:        { icon: "⚖️", label: "Jurídico" },
-  investigador:    { icon: "🕵️", label: "Investigador" },
-  leitor:          { icon: "📄", label: "Leitor" },
-  analista:        { icon: "📊", label: "Analista" },
-  ops:             { icon: "⚙️", label: "Ops" },
+  conhecimento:    { icon: "book-open",   label: "Conhecimento" },
+  desenvolvimento: { icon: "code-2",      label: "Desenvolvimento" },
+  saude:           { icon: "heart-pulse", label: "Saúde" },
+  treino:          { icon: "dumbbell",    label: "Treino" },
+  produtividade:   { icon: "zap",         label: "Produtividade" },
+  sentinela:       { icon: "shield",      label: "Sentinela" },
+  juridico:        { icon: "scale",       label: "Jurídico" },
+  investigador:    { icon: "search",      label: "Investigador" },
+  leitor:          { icon: "file-text",   label: "Leitor" },
+  analista:        { icon: "bar-chart-2", label: "Analista" },
+  ops:             { icon: "settings-2",  label: "Ops" },
 };
 
 const STATUS_MSG = {
@@ -87,7 +87,9 @@ input.addEventListener("keydown", (e) => {
 function updateBadge(agentKey) {
   const meta = AGENT_META[agentKey] || AGENT_META.conhecimento;
   state.currentAgent          = agentKey;
-  agentBadgeIcon.textContent  = meta.icon;
+  agentBadgeIcon.innerHTML    = "";
+  agentBadgeIcon.appendChild(lucideIcon(meta.icon, 16));
+  lucide.createIcons();
   agentBadgeLabel.textContent = meta.label;
   attachBtn.style.display     = "flex";
 }
@@ -97,13 +99,17 @@ Object.entries(AGENT_META).forEach(([key, meta]) => {
   const btn = document.createElement("button");
   btn.classList.add("agent-option");
   btn.dataset.agent = key;
-  btn.innerHTML = `<span>${meta.icon}</span><span>${meta.label}</span>`;
+  btn.appendChild(lucideIcon(meta.icon, 15));
+  const labelSpan = document.createElement("span");
+  labelSpan.textContent = meta.label;
+  btn.appendChild(labelSpan);
   btn.addEventListener("click", () => {
     updateBadge(key);
     agentDropdown.setAttribute("hidden", "");
   });
   agentDropdown.appendChild(btn);
 });
+lucide.createIcons();
 
 agentBadge.addEventListener("click", () => {
   if (state.agentLocked) return;
@@ -141,6 +147,15 @@ input.addEventListener("keyup", () => {
   }, 300);
 });
 
+// ── Lucide icon helper ────────────────────────────────
+function lucideIcon(name, size = 16) {
+  const el = document.createElement("span");
+  el.classList.add("lucide-icon");
+  el.dataset.lucide = name;
+  el.style.cssText = `width:${size}px;height:${size}px;display:inline-flex;align-items:center;justify-content:center`;
+  return el;
+}
+
 // ── Helpers ───────────────────────────────────────────
 function scrollToBottom() {
   chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: "smooth" });
@@ -167,7 +182,12 @@ function appendMessage(role, text, agentKey) {
 
   const avatar = document.createElement("div");
   avatar.classList.add("avatar");
-  avatar.textContent = role === "user" ? "U" : meta.icon;
+  if (role === "user") {
+    avatar.textContent = "U";
+  } else {
+    avatar.appendChild(lucideIcon(meta.icon, 16));
+    lucide.createIcons();
+  }
 
   const bubble = document.createElement("div");
   bubble.classList.add("bubble");
@@ -311,7 +331,8 @@ form.addEventListener("submit", async (e) => {
 
   const avatar = document.createElement("div");
   avatar.classList.add("avatar");
-  avatar.textContent = meta.icon;
+  avatar.appendChild(lucideIcon(meta.icon, 16));
+  lucide.createIcons();
 
   const bubble = document.createElement("div");
   bubble.classList.add("bubble", "streaming");
@@ -546,7 +567,7 @@ function renderConvList(groups) {
 
       const iconEl = document.createElement("span");
       iconEl.classList.add("conv-item-icon");
-      iconEl.textContent = (AGENT_META[conv.agent] || AGENT_META.conhecimento).icon;
+      iconEl.appendChild(lucideIcon((AGENT_META[conv.agent] || AGENT_META.conhecimento).icon, 14));
 
       const titleEl = document.createElement("span");
       titleEl.classList.add("conv-item-title");
@@ -558,6 +579,7 @@ function renderConvList(groups) {
       list.appendChild(item);
     }
   }
+  lucide.createIcons();
 }
 
 async function loadConversation(convId, agent) {
