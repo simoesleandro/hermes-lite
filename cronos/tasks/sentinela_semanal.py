@@ -3,10 +3,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from services.sentinela_client import SentinelaClient
-from cronos.notifier import send_embed
+from cronos.notifier import send_telegram
 
-_WEBHOOK = os.getenv("DISCORD_WEBHOOK_SENTINELA", "")
-_COLOR = 0xED4245
 _TZ = ZoneInfo("America/Sao_Paulo")
 
 
@@ -25,18 +23,16 @@ def run() -> None:
     top = client.top_contratos(limit=3)
 
     if resumo.get("offline"):
-        send_embed(
-            _WEBHOOK,
-            title=f"🔎 Relatório Semanal Sentinela RJ — {hoje}",
-            description="⚠️ Sentinela offline — banco de dados indisponível.",
-            color=0x99AAB5,
+        send_telegram(
+            f"🔎 Relatório Semanal Sentinela RJ — {hoje}\n"
+            "⚠️ Sentinela offline — banco de dados indisponível."
         )
         return
 
     visao = (
-        f"Contratos: **{resumo['contratos']}**\n"
-        f"Valor total: **{_brl(resumo['valor_total'])}**\n"
-        f"Alertas abertos: **{resumo['alertas_abertos']}**"
+        f"Contratos: {resumo['contratos']}\n"
+        f"Valor total: {_brl(resumo['valor_total'])}\n"
+        f"Alertas abertos: {resumo['alertas_abertos']}"
     )
 
     alertas_txt = "\n".join(
@@ -49,16 +45,11 @@ def run() -> None:
         for t in top
     ) or "Sem dados."
 
-    fields = [
-        {"name": "📊 Visão Geral",                  "value": visao,       "inline": False},
-        {"name": "🚨 Top Alertas Alta Severidade",   "value": alertas_txt, "inline": False},
-        {"name": "💰 Maiores Contratos",             "value": top_txt,     "inline": False},
-    ]
-
-    send_embed(
-        _WEBHOOK,
-        title=f"🔎 Relatório Semanal Sentinela RJ — {hoje}",
-        description=f"Última coleta: {resumo.get('ultima_coleta') or 'desconhecida'}",
-        color=_COLOR,
-        fields=fields,
+    msg = (
+        f"🔎 Relatório Semanal Sentinela RJ — {hoje}\n"
+        f"Última coleta: {resumo.get('ultima_coleta') or 'desconhecida'}\n\n"
+        f"📊 Visão Geral\n{visao}\n\n"
+        f"🚨 Top Alertas Alta Severidade\n{alertas_txt}\n\n"
+        f"💰 Maiores Contratos\n{top_txt}"
     )
+    send_telegram(msg)

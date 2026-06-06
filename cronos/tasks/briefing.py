@@ -4,10 +4,8 @@ from zoneinfo import ZoneInfo
 
 from services.syshealth_client import SysHealthClient
 from services.sentinela_client import SentinelaClient
-from cronos.notifier import send_embed
+from cronos.notifier import send_telegram
 
-_WEBHOOK = os.getenv("DISCORD_WEBHOOK_BRIEFING", "")
-_COLOR = 0x5865F2
 _TZ = ZoneInfo("America/Sao_Paulo")
 _DIAS_PT = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
 
@@ -27,17 +25,11 @@ def run() -> None:
     resumo = SentinelaClient().get_resumo()
     alertas_txt = "Sentinela offline" if resumo.get("offline") else f"{resumo.get('alertas_abertos', 0)} alertas abertos"
 
-    fields = [
-        {"name": "📅 Agenda do dia",  "value": agenda,                              "inline": False},
-        {"name": "🎯 Metas de hoje",  "value": "Água: 3000ml  |  Proteína: 150g",   "inline": False},
-        {"name": "🔎 Sentinela",      "value": alertas_txt,                         "inline": False},
-    ]
-
-    send_embed(
-        _WEBHOOK,
-        title=f"☀️ Bom dia, Leandro! — {data_fmt} · {dia_semana}",
-        description="",
-        color=_COLOR,
-        fields=fields,
-        footer=f"Hermes Cronos • {hora_fmt}",
+    msg = (
+        f"☀️ Bom dia, Leandro! — {data_fmt} · {dia_semana}\n\n"
+        f"📅 Agenda do dia\n{agenda}\n\n"
+        f"🎯 Metas de hoje\nÁgua: 3000ml  |  Proteína: 150g\n\n"
+        f"🔎 Sentinela\n{alertas_txt}\n\n"
+        f"Hermes Cronos • {hora_fmt}"
     )
+    send_telegram(msg)

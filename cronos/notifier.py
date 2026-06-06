@@ -1,6 +1,10 @@
 import json
 import logging
+import os
+import urllib.error
 import urllib.request
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
 logger = logging.getLogger("cronos.notifier")
 
@@ -31,3 +35,27 @@ def send_embed(
             resp.read()
     except Exception as exc:
         logger.error("Discord webhook falhou: %s", exc)
+
+
+def send_telegram(message: str) -> None:
+    token   = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+    if not token or not chat_id:
+        logger.warning("TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurados")
+        return
+    print(f"[DEBUG] Sending to Telegram: {message[:200]}")
+    payload = json.dumps({"chat_id": chat_id, "text": message}).encode()
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read()
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode()
+        logger.error("Telegram notification falhou: %s — %s", exc, body)
+    except Exception as exc:
+        logger.error("Telegram notification falhou: %s", exc)

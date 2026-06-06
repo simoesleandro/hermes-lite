@@ -1,13 +1,14 @@
 import logging
+import os
 import sys
 import traceback
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
-from cronos.notifier import send_embed
+from cronos.notifier import send_telegram
 from cronos.scheduler import run_loop
 from cronos.tasks import briefing, resumo_saude, sentinela_semanal
 
@@ -18,13 +19,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("cronos")
 
-import os
-_WEBHOOK_LOGS = os.getenv("DISCORD_WEBHOOK_LOGS", "")
 _TZ = ZoneInfo("America/Sao_Paulo")
 
 
 def _log(msg: str) -> None:
-    send_embed(_WEBHOOK_LOGS, title="Hermes Cronos", description=msg, color=0x99AAB5)
+    send_telegram(f"*Hermes Cronos*\n{msg}")
 
 
 def _wrap(name: str, fn):

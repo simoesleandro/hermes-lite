@@ -3,10 +3,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from services.syshealth_client import SysHealthClient
-from cronos.notifier import send_embed
+from cronos.notifier import send_telegram
 
-_WEBHOOK = os.getenv("DISCORD_WEBHOOK_SAUDE", "")
-_COLOR = 0x57F287
 _META_AGUA = 3000
 _META_PROTEINA = 150
 _TZ = ZoneInfo("America/Sao_Paulo")
@@ -18,16 +16,11 @@ def run() -> None:
     hoje = datetime.now(_TZ).strftime("%d/%m/%Y")
 
     if data.get("offline"):
-        send_embed(
-            _WEBHOOK,
-            title=f"📊 Resumo de Saúde — {hoje}",
-            description="⚠️ SysHealth offline — dados indisponíveis.",
-            color=0x99AAB5,
-        )
+        send_telegram(f"📊 Resumo de Saúde — {hoje}\n⚠️ SysHealth offline — dados indisponíveis.")
         return
 
-    agua = data.get("agua") or 0
-    proteina = data.get("proteina") or 0
+    agua = data.get("agua_hoje_ml") or 0
+    proteina = data.get("proteina_g") or 0
 
     obs = []
     if agua < 2000:
@@ -41,15 +34,16 @@ def run() -> None:
     def _v(val, unit=""):
         return f"{val}{unit}" if val is not None else "—"
 
-    fields = [
-        {"name": "💧 Água",       "value": f"{_v(agua, 'ml')} ({pct_agua}% de {_META_AGUA}ml)", "inline": True},
-        {"name": "⚖️ Peso",       "value": _v(data.get("peso"), "kg"),                           "inline": True},
-        {"name": "🥩 Proteína",   "value": f"{_v(proteina, 'g')} ({pct_prot}% de {_META_PROTEINA}g)", "inline": True},
-        {"name": "😴 Sono",       "value": _v(data.get("sono"), "h"),                            "inline": True},
-        {"name": "🚶 Passos",     "value": _v(data.get("passos")),                               "inline": True},
-        {"name": "🏋️ Treino",    "value": _v(data.get("treino")),                               "inline": True},
-        {"name": "💉 Tirzepatida","value": _v(data.get("tirzepatida")),                          "inline": True},
-    ]
-
     desc = " · ".join(obs) if obs else "Dia dentro das metas ✅"
-    send_embed(_WEBHOOK, title=f"📊 Resumo de Saúde — {hoje}", description=desc, color=_COLOR, fields=fields)
+
+    msg = (
+        f"📊 Resumo de Saúde — {hoje}\n{desc}\n\n"
+        f"💧 Água: {_v(agua, 'ml')} ({pct_agua}% de {_META_AGUA}ml)\n"
+        f"⚖️ Peso: {_v(data.get('peso_kg'), 'kg')}\n"
+        f"🥩 Proteína: {_v(proteina, 'g')} ({pct_prot}% de {_META_PROTEINA}g)\n"
+        f"😴 Sono: {_v(data.get('sono_horas'), 'h')}\n"
+        f"🚶 Passos: {_v(data.get('passos_hoje'))}\n"
+        f"🏋️ Treino: {_v(data.get('treino_hoje'))}\n"
+        f"💉 Tirzepatida: {_v(data.get('tirzepatida_hoje'))}"
+    )
+    send_telegram(msg)
