@@ -33,6 +33,9 @@ const state = {
   agentLocked:   false,
   currentConvId: null,
   isStreaming:   false,
+  messageQueue:  [],
+  activeSkill:   null,
+  skillsCache:   null,
 };
 let attachedFile = null;
 const sessionId = crypto.randomUUID();
@@ -51,6 +54,10 @@ const agentBadge      = document.getElementById("agent-badge");
 const agentBadgeIcon  = document.getElementById("agent-badge-icon");
 const agentBadgeLabel = document.getElementById("agent-badge-label");
 const agentDropdown   = document.getElementById("agent-dropdown");
+const skillBadge      = document.getElementById("skill-badge");
+const skillBadgeLabel = document.getElementById("skill-badge-label");
+const skillDropdown   = document.getElementById("skill-dropdown");
+const messageQueueEl  = document.getElementById("message-queue");
 const agentStatus     = document.getElementById("agent-status");
 const fileChip        = document.getElementById("file-chip");
 const fileChipIcon    = document.getElementById("file-chip-icon");
@@ -99,7 +106,12 @@ input.addEventListener("input", () => {
 input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-    if (!state.isStreaming) form.requestSubmit();
+    const msg = input.value.trim();
+    if (state.isStreaming) {
+      if (msg) enqueueMessage(msg);
+    } else {
+      form.requestSubmit();
+    }
   }
 });
 
@@ -114,6 +126,111 @@ function updateBadge(agentKey) {
   agentBadgeLabel.textContent = meta.label;
   attachBtn.style.display     = "flex";
   toggleSentinelaPanel(agentKey);
+  updateSkillBadge(agentKey);
+}
+
+async function loadSkillsCache() {
+  if (state.skillsCache) return state.skillsCache;
+  try {
+    const res = await fetch("/api/skills");
+    state.skillsCache = (await res.json()).skills || {};
+  } catch {
+    state.skillsCache = {};
+  }
+  return state.skillsCache;
+}
+
+function updateSkillBadge(agentKey) {
+  loadSkillsCache().then((cache) => {
+    const skills = cache[agentKey] || {};
+    const ids = Object.keys(skills);
+    skillDropdown.innerHTML = "";
+    if (!ids.length) {
+      skillBadge.hidden = true;
+      state.activeSkill = null;
+      return;
+    }
+    skillBadge.hidden = false;
+    const clearBtn = document.createElement("button");
+    clearBtn.type = "button";
+    clearBtn.className = "skill-option";
+    clearBtn.textContent = "Padrão (sem skill)";
+    clearBtn.addEventListener("click", () => {
+      state.activeSkill = null;
+      skillBadge.classList.remove("active");
+      skillBadgeLabel.textContent = "Skill";
+      skillDropdown.setAttribute("hidden", "");
+    });
+    skillDropdown.appendChild(clearBtn);
+    ids.forEach((id) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "skill-option";
+      btn.dataset.skill = id;
+      btn.textContent = skills[id].label || id;
+      if (state.activeSkill === id) btn.classList.add("selected");
+      btn.addEventListener("click", () => {
+        state.activeSkill = id;
+        skillBadge.classList.add("active");
+        skillBadgeLabel.textContent = skills[id].label || id;
+        skillDropdown.setAttribute("hidden", "");
+      });
+      skillDropdown.appendChild(btn);
+    });
+    if (state.activeSkill && skills[state.activeSkill]) {
+      skillBadge.classList.add("active");
+      skillBadgeLabel.textContent = skills[state.activeSkill].label;
+    } else {
+      skillBadge.classList.remove("active");
+      skillBadgeLabel.textContent = "Skill";
+      state.activeSkill = null;
+    }
+  });
+}
+
+skillBadge.addEventListener("click", () => {
+  if (skillBadge.hidden) return;
+  const open = !skillDropdown.hasAttribute("hidden");
+  agentDropdown.setAttribute("hidden", "");
+  if (open) skillDropdown.setAttribute("hidden", "");
+  else skillDropdown.removeAttribute("hidden");
+});
+
+function renderMessageQueue() {
+  if (!messageQueueEl) return;
+  if (!state.messageQueue.length) {
+    messageQueueEl.hidden = true;
+    messageQueueEl.innerHTML = "";
+    return;
+  }
+  messageQueueEl.hidden = false;
+  messageQueueEl.innerHTML =
+    `<span class="queue-label">${state.messageQueue.length} na fila</span>` +
+    state.messageQueue.map((m) => `<span class="queue-item">${escapeHtml(m.text.slice(0, 48))}</span>`).join("");
+}
+
+function enqueueMessage(message) {
+  state.messageQueue.push({
+    text: message,
+    skill: state.activeSkill,
+    file: attachedFile ? { ...attachedFile } : null,
+  });
+  input.value = "";
+  input.style.height = "auto";
+  clearFileChip();
+  renderMessageQueue();
+}
+
+function dequeueAndSend() {
+  if (state.isStreaming || !state.messageQueue.length) return;
+  const next = state.messageQueue.shift();
+  renderMessageQueue();
+  if (next.file) attachedFile = next.file;
+  if (next.skill !== undefined) {
+    state.activeSkill = next.skill;
+    updateSkillBadge(state.currentAgent);
+  }
+  dispatchMessage(next.text);
 }
 
 function toggleSentinelaPanel(agentKey) {
@@ -192,6 +309,7 @@ Object.entries(AGENT_META).forEach(([key, meta]) => {
 lucide.createIcons();
 
 agentBadge.addEventListener("click", () => {
+  skillDropdown.setAttribute("hidden", "");
   if (state.agentLocked) return;
   const isHidden = agentDropdown.hasAttribute("hidden");
   if (isHidden) {
@@ -207,6 +325,9 @@ agentBadge.addEventListener("click", () => {
 document.addEventListener("click", (e) => {
   if (!agentBadge.contains(e.target) && !agentDropdown.contains(e.target)) {
     agentDropdown.setAttribute("hidden", "");
+  }
+  if (skillBadge && !skillBadge.contains(e.target) && !skillDropdown.contains(e.target)) {
+    skillDropdown.setAttribute("hidden", "");
   }
 });
 
@@ -367,34 +488,15 @@ fileInput.addEventListener("change", async () => {
   }
 });
 
-// ── Submit ────────────────────────────────────────────
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const message = input.value.trim();
-  if (!message || state.isStreaming) return;
-
-  if (message === "/limpar") {
-    input.value = "";
-    input.style.height = "auto";
-    try {
-      await fetch("/chat/clear", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent: state.currentAgent, session_id: sessionId }),
-      });
-    } catch { /* best-effort */ }
-    chatInner.innerHTML = "";
-    appendSystemMessage("Histórico limpo");
-    input.focus();
-    return;
-  }
+// ── Submit / stream ───────────────────────────────────
+async function dispatchMessage(message) {
+  if (!message) return;
 
   if (!state.agentLocked) {
     state.agentLocked = true;
     agentBadge.classList.add("locked");
   }
 
-  // Create conversation on first message (Stage 4 populates sidebar after response)
   if (!state.currentConvId) {
     state.currentConvId = crypto.randomUUID();
     fetch("/api/conversations", {
@@ -413,14 +515,13 @@ form.addEventListener("submit", async (e) => {
   input.style.height = "auto";
   state.isStreaming = true;
   form.classList.add("aurora-active");
-  sendBtn.disabled = true;
   sendBtn.style.display = "none";
   stopBtn.style.display = "flex";
 
   const agentSnap = state.currentAgent;
+  const skillSnap = state.activeSkill;
   const meta      = AGENT_META[agentSnap];
 
-  // Build streaming bubble
   const row = document.createElement("div");
   row.classList.add("msg-row", "assistant");
 
@@ -445,7 +546,6 @@ form.addEventListener("submit", async (e) => {
   lucide.createIcons();
   scrollToBottom();
 
-  // Thinking indicator inside bubble
   const thinkingEl = document.createElement("div");
   thinkingEl.classList.add("bubble-thinking");
   thinkingEl.innerHTML = '<div class="thinking-dots"><span></span><span></span><span></span></div><span class="thinking-text"></span>';
@@ -467,6 +567,7 @@ form.addEventListener("submit", async (e) => {
   let firstToken    = true;
   let streamDone    = false;
   let providerRef   = null;
+  let es            = null;
 
   function _renderB64Images(container) {
     container.querySelectorAll("p, pre, code").forEach((el) => {
@@ -517,11 +618,11 @@ form.addEventListener("submit", async (e) => {
     form.classList.remove("aurora-active");
     stopBtn.style.display = "none";
     sendBtn.style.display = "flex";
-    sendBtn.disabled      = false;
     stopBtn.removeEventListener("click", handleStop);
     input.focus();
 
     if (typeof loadConversations === "function") loadConversations();
+    setTimeout(dequeueAndSend, 0);
   }
 
   function drainBuffer() {
@@ -548,7 +649,6 @@ form.addEventListener("submit", async (e) => {
   }
   stopBtn.addEventListener("click", handleStop);
 
-  // Build message with attachment if present (leitor PDF is handled server-side)
   let messageToSend = message;
   let _imageId = null;
   if (attachedFile) {
@@ -568,13 +668,14 @@ form.addEventListener("submit", async (e) => {
   const params = new URLSearchParams({ message: messageToSend, agent: agentSnap, session_id: sessionId });
   if (state.currentConvId) params.set("conv_id", state.currentConvId);
   if (_imageId) params.set("image_id", _imageId);
-  const es = new EventSource(`/chat/stream?${params}`);
+  if (skillSnap) params.set("skill", skillSnap);
+  es = new EventSource(`/chat/stream?${params}`);
 
   es.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
     if (data.error) {
-      tokenBuffer = [];
+      charBuffer = [];
       body.textContent = `Erro: ${data.error}`;
       streamDone = true;
       finalizeUI(null);
@@ -597,6 +698,23 @@ form.addEventListener("submit", async (e) => {
       step.classList.add("progress-step");
       step.textContent = data.progress;
       progressSteps.appendChild(step);
+      scrollToBottom();
+    }
+
+    if (data.sources && data.sources.length) {
+      const sourcesEl = document.createElement("div");
+      sourcesEl.className = "message-sources";
+      sourcesEl.innerHTML =
+        `<div class="sources-title">Fontes</div><ol class="sources-list">` +
+        data.sources.map((s) =>
+          `<li><span class="src-n">[${s.n}]</span> ` +
+          (s.url
+            ? `<a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.title)}</a>`
+            : escapeHtml(s.title)) +
+          `</li>`
+        ).join("") +
+        `</ol>`;
+      bubble.insertBefore(sourcesEl, body);
       scrollToBottom();
     }
 
@@ -637,6 +755,37 @@ form.addEventListener("submit", async (e) => {
     charBuffer = [];
     finalizeUI(null);
   };
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const message = input.value.trim();
+  if (!message) return;
+
+  if (state.isStreaming) {
+    enqueueMessage(message);
+    return;
+  }
+
+  if (message === "/limpar") {
+    input.value = "";
+    input.style.height = "auto";
+    state.messageQueue = [];
+    renderMessageQueue();
+    try {
+      await fetch("/chat/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agent: state.currentAgent, session_id: sessionId }),
+      });
+    } catch { /* best-effort */ }
+    chatInner.innerHTML = "";
+    appendSystemMessage("Histórico limpo");
+    input.focus();
+    return;
+  }
+
+  dispatchMessage(message);
 });
 
 // ── Conversation search ───────────────────────────────
@@ -660,6 +809,96 @@ if (convSearch) {
   });
 }
 
+function buildConvItem(conv) {
+  const item = document.createElement("div");
+  item.classList.add("conv-item");
+  if (conv.id === state.currentConvId) item.classList.add("active");
+  item.dataset.convId = conv.id;
+
+  const iconEl = document.createElement("span");
+  iconEl.classList.add("conv-item-icon");
+  iconEl.appendChild(lucideIcon((AGENT_META[conv.agent] || AGENT_META.conhecimento).icon, 14));
+
+  const titleEl = document.createElement("span");
+  titleEl.classList.add("conv-item-title");
+  titleEl.textContent = conv.title;
+  titleEl.title = "Duplo-clique para renomear";
+
+  const actions = document.createElement("div");
+  actions.className = "conv-item-actions";
+
+  const renameBtn = document.createElement("button");
+  renameBtn.type = "button";
+  renameBtn.className = "conv-action-btn";
+  renameBtn.title = "Renomear";
+  renameBtn.textContent = "✎";
+  renameBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    renameConversation(conv.id, titleEl);
+  });
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "conv-action-btn conv-action-delete";
+  deleteBtn.title = "Excluir";
+  deleteBtn.textContent = "×";
+  deleteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    deleteConversation(conv.id, conv.title);
+  });
+
+  actions.appendChild(renameBtn);
+  actions.appendChild(deleteBtn);
+
+  titleEl.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    renameConversation(conv.id, titleEl);
+  });
+
+  item.appendChild(iconEl);
+  item.appendChild(titleEl);
+  item.appendChild(actions);
+
+  if (conv.snippet) {
+    const snip = document.createElement("span");
+    snip.classList.add("conv-item-snippet");
+    snip.textContent = conv.snippet.replace(/\*\*/g, "");
+    item.appendChild(snip);
+  }
+
+  item.addEventListener("click", () => loadConversation(conv.id, conv.agent));
+  return item;
+}
+
+async function renameConversation(convId, titleEl) {
+  const current = titleEl.textContent;
+  const next = prompt("Novo título da conversa:", current);
+  if (!next || next.trim() === current) return;
+  try {
+    const res = await fetch(`/api/conversations/${convId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: next.trim() }),
+    });
+    if (!res.ok) throw new Error();
+    titleEl.textContent = next.trim().slice(0, 80);
+  } catch {
+    appendSystemMessage("Erro ao renomear conversa");
+  }
+}
+
+async function deleteConversation(convId, title) {
+  if (!confirm(`Excluir conversa "${title}"?`)) return;
+  try {
+    const res = await fetch(`/api/conversations/${convId}`, { method: "DELETE" });
+    if (!res.ok) throw new Error();
+    if (state.currentConvId === convId) newConversation();
+    loadConversations();
+  } catch {
+    appendSystemMessage("Erro ao excluir conversa");
+  }
+}
+
 function renderSearchResults(results) {
   const list = document.getElementById("conv-list");
   list.innerHTML = "";
@@ -672,26 +911,7 @@ function renderSearchResults(results) {
   groupEl.textContent = "Resultados";
   list.appendChild(groupEl);
   for (const conv of results) {
-    const item = document.createElement("div");
-    item.classList.add("conv-item");
-    if (conv.id === state.currentConvId) item.classList.add("active");
-    item.dataset.convId = conv.id;
-    const iconEl = document.createElement("span");
-    iconEl.classList.add("conv-item-icon");
-    iconEl.appendChild(lucideIcon((AGENT_META[conv.agent] || AGENT_META.conhecimento).icon, 14));
-    const titleEl = document.createElement("span");
-    titleEl.classList.add("conv-item-title");
-    titleEl.textContent = conv.title;
-    item.appendChild(iconEl);
-    item.appendChild(titleEl);
-    if (conv.snippet) {
-      const snip = document.createElement("span");
-      snip.classList.add("conv-item-snippet");
-      snip.textContent = conv.snippet.replace(/\*\*/g, "");
-      item.appendChild(snip);
-    }
-    item.addEventListener("click", () => loadConversation(conv.id, conv.agent));
-    list.appendChild(item);
+    list.appendChild(buildConvItem(conv));
   }
   lucide.createIcons();
 }
@@ -718,23 +938,7 @@ function renderConvList(groups) {
     list.appendChild(groupEl);
 
     for (const conv of convs) {
-      const item = document.createElement("div");
-      item.classList.add("conv-item");
-      if (conv.id === state.currentConvId) item.classList.add("active");
-      item.dataset.convId = conv.id;
-
-      const iconEl = document.createElement("span");
-      iconEl.classList.add("conv-item-icon");
-      iconEl.appendChild(lucideIcon((AGENT_META[conv.agent] || AGENT_META.conhecimento).icon, 14));
-
-      const titleEl = document.createElement("span");
-      titleEl.classList.add("conv-item-title");
-      titleEl.textContent = conv.title;
-
-      item.appendChild(iconEl);
-      item.appendChild(titleEl);
-      item.addEventListener("click", () => loadConversation(conv.id, conv.agent));
-      list.appendChild(item);
+      list.appendChild(buildConvItem(conv));
     }
   }
   lucide.createIcons();

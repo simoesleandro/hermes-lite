@@ -58,10 +58,103 @@ _RULES = [
 ]
 
 
-def classify_agent(message: str) -> str:
+_VALID_AGENTS = frozenset({
+    "conhecimento", "saude", "treino", "desenvolvimento", "analista",
+    "juridico", "sentinela", "investigador", "leitor", "produtividade", "ops",
+})
+
+_CLASSIFY_SYSTEM = """Você roteia mensagens para um agente do Hermes Lite.
+Responda APENAS com o nome exato do agente, sem pontuação nem explicação.
+
+Agentes:
+- conhecimento: perguntas gerais
+- saude: água, peso, sono, HRV, nutrição
+- treino: exercícios, musculação, corrida
+- desenvolvimento: código, bugs, programação
+- analista: SQL, gráficos, rankings, consultas Sentinela DB
+- juridico: leis, cláusulas, processos, pareceres
+- sentinela: irregularidades, PNCP, licitações, alertas
+- investigador: pesquisa web, notícias, dossiês
+- leitor: PDFs e documentos
+- produtividade: tarefas, agenda, organização
+- ops: serviços Windows, Cronos, Vigia, status do sistema"""
+
+
+def classify_agent_regex_matches(message: str) -> list[str]:
+    matches: list[str] = []
     for pattern, agent in _RULES:
         if pattern.search(message):
+            matches.append(agent)
+    return matches
+
+
+def _classify_agent_llm(message: str, candidates: list[str] | None = None) -> str:
+    from model_router import Complexity, get_completion
+
+    hint = ""
+    if candidates:
+        hint = f"\nCandidatos das regras regex: {', '.join(candidates)}. Escolha o mais adequado."
+    raw = get_completion(
+        [
+            {"role": "system", "content": _CLASSIFY_SYSTEM + hint},
+            {"role": "user", "content": message},
+        ],
+        Complexity.SIMPLE,
+    ).strip().lower()
+
+    for token in re.split(r"[\s,.;:!?]+", raw):
+        token = token.strip("'\"")
+        if token in _VALID_AGENTS:
+            return token
+    for agent in _VALID_AGENTS:
+        if agent in raw:
             return agent
+    return "conhecimento"
+
+
+def _classify_llm_enabled() -> bool:
+    if os.getenv("CLASSIFY_LLM_FALLBACK", "1") != "1":
+        return False
+    return bool(os.getenv("GEMINI_API_KEY") or os.getenv("GROQ_API_KEY"))
+
+
+def _classify_llm_disambiguate() -> bool:
+    return os.getenv("CLASSIFY_LLM_DISAMBIGUATE", "0") == "1"
+
+
+def classify_agent(
+    message: str,
+    *,
+    llm_fallback: bool | None = None,
+    llm_disambiguate: bool | None = None,
+) -> str:
+    message = (message or "").strip()
+    if not message:
+        return "conhecimento"
+
+    matches = classify_agent_regex_matches(message)
+    if len(matches) == 1:
+        return matches[0]
+
+    use_llm = llm_fallback if llm_fallback is not None else _classify_llm_enabled()
+    disambiguate = llm_disambiguate if llm_disambiguate is not None else _classify_llm_disambiguate()
+
+    if use_llm and not matches:
+        try:
+            return _classify_agent_llm(message)
+        except Exception:
+            pass
+
+    if matches and len(matches) > 1 and use_llm and disambiguate:
+        try:
+            picked = _classify_agent_llm(message, candidates=matches)
+            if picked in matches:
+                return picked
+        except Exception:
+            pass
+
+    if matches:
+        return matches[0]
     return "conhecimento"
 
 
@@ -109,7 +202,7 @@ def create_app(*, enable_cors: bool = False) -> Flask:
         def _cors(response):
             response.headers["Access-Control-Allow-Origin"] = "*"
             response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-            response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PATCH, DELETE, OPTIONS"
             return response
 
     @app.route("/")
@@ -119,7 +212,10 @@ def create_app(*, enable_cors: bool = False) -> Flask:
     @app.route("/chat/classify")
     def chat_classify():
         q = request.args.get("q", "").strip()
-        return jsonify({"agent": classify_agent(q)})
+        matches = classify_agent_regex_matches(q)
+        agent = classify_agent(q)
+        source = "regex" if len(matches) == 1 else ("llm" if not matches and agent != "conhecimento" else "default")
+        return jsonify({"agent": agent, "source": source, "candidates": matches})
 
     @app.route("/api/conversations", methods=["POST"])
     def create_conversation_route():
@@ -164,8 +260,27 @@ def create_app(*, enable_cors: bool = False) -> Flask:
 
     @app.route("/api/conversations/<conv_id>")
     def get_conversation_route(conv_id: str):
+        meta = db.get_conversation(conv_id)
+        if not meta:
+            return jsonify({"error": "conversa não encontrada"}), 404
         messages = db.get_conversation_messages(conv_id)
-        return jsonify({"messages": messages})
+        return jsonify({"conversation": meta, "messages": messages})
+
+    @app.route("/api/conversations/<conv_id>", methods=["PATCH"])
+    def update_conversation_route(conv_id: str):
+        data = request.get_json(force=True)
+        title = (data.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "title é obrigatório"}), 400
+        if not db.update_conversation(conv_id, title):
+            return jsonify({"error": "conversa não encontrada"}), 404
+        return jsonify({"ok": True, "title": title[:80]})
+
+    @app.route("/api/conversations/<conv_id>", methods=["DELETE"])
+    def delete_conversation_route(conv_id: str):
+        if not db.delete_conversation(conv_id):
+            return jsonify({"error": "conversa não encontrada"}), 404
+        return jsonify({"ok": True})
 
     @app.route("/api/conversations/<conv_id>/export")
     def export_conversation_route(conv_id: str):
@@ -198,6 +313,12 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             "alertas_criticos": alertas,
             "top_contratos": top,
         })
+
+    @app.route("/api/skills")
+    def list_skills_route():
+        from agents.skills import list_skills
+        agent = request.args.get("agent", "").strip() or None
+        return jsonify({"skills": list_skills(agent)})
 
     @app.route("/upload/pdf", methods=["POST"])
     def upload_pdf():
@@ -337,7 +458,12 @@ def create_app(*, enable_cors: bool = False) -> Flask:
         agent_name = request.args.get("agent", "conhecimento").lower()
         session_id = request.args.get("session_id") or str(uuid.uuid4())
         conv_id = request.args.get("conv_id") or None
+        skill_id = request.args.get("skill") or None
         image_b64 = _pop_image(request.args.get("image_id") or None)
+
+        if skill_id and message:
+            from agents.skills import apply_skill
+            message = apply_skill(agent_name, skill_id, message)
 
         def _sse(payload: dict) -> str:
             return f"data: {json.dumps(payload)}\n\n"
@@ -365,6 +491,8 @@ def create_app(*, enable_cors: bool = False) -> Flask:
                             yield _sse({"progress": item["progress"]})
                         elif "chart" in item:
                             yield _sse({"chart": item["chart"]})
+                        elif "sources" in item:
+                            yield _sse({"sources": item["sources"]})
                         else:
                             provider = item.get("provider", "unknown")
                     else:

@@ -69,3 +69,26 @@ def test_export_conversation_markdown(db):
     assert "# Parecer jurídico" in md
     assert "juridico" in md
     assert "Art. 75" in md
+
+
+def test_update_conversation_title(db):
+    db.create_conversation("conv-upd", "Título antigo", "saude")
+    assert db.update_conversation("conv-upd", "Título novo") is True
+    meta = db.get_conversation("conv-upd")
+    assert meta["title"] == "Título novo"
+
+
+def test_update_conversation_missing(db):
+    assert db.update_conversation("missing", "X") is False
+
+
+def test_delete_conversation(db):
+    db.create_conversation("conv-del", "Apagar", "ops")
+    db.save_message("ops", "user", "status", "s1", conversation_id="conv-del")
+    assert db.delete_conversation("conv-del") is True
+    assert db.get_conversation("conv-del") is None
+    assert db.get_conversation_messages("conv-del") == []
+
+
+def test_delete_conversation_missing(db):
+    assert db.delete_conversation("missing") is False

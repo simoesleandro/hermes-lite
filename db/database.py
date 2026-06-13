@@ -172,6 +172,22 @@ class Database:
             ).fetchone()
         return dict(row) if row else None
 
+    def update_conversation(self, conv_id: str, title: str) -> bool:
+        with self._connect() as conn:
+            cur = conn.execute(
+                "UPDATE conversations SET title = ? WHERE id = ?",
+                (title[:80], conv_id),
+            )
+            conn.commit()
+        return cur.rowcount > 0
+
+    def delete_conversation(self, conv_id: str) -> bool:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conv_id,))
+            cur = conn.execute("DELETE FROM conversations WHERE id = ?", (conv_id,))
+            conn.commit()
+        return cur.rowcount > 0
+
     def search_conversations(self, query: str, agent: str | None = None, limit: int = 30) -> list[dict]:
         fts_query = " ".join(f'"{w}"' for w in query.split() if w.strip())
         if not fts_query:

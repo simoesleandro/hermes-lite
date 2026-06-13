@@ -97,3 +97,38 @@ def test_ops_cronos():
 
 def test_ops_hermes():
     assert classify_agent("hermes online?") == "ops"
+
+
+def test_regex_multiple_matches():
+    from app_factory import classify_agent_regex_matches
+    matches = classify_agent_regex_matches("treino de código python com bug")
+    assert "treino" in matches
+    assert "desenvolvimento" in matches
+
+
+def test_no_match_without_llm():
+    assert classify_agent("me explica o universo", llm_fallback=False) == "conhecimento"
+
+
+def test_ambiguous_uses_llm(monkeypatch):
+    monkeypatch.setattr(
+        "app_factory._classify_agent_llm",
+        lambda msg, candidates=None: "desenvolvimento",
+    )
+    assert classify_agent(
+        "treino de código python com bug",
+        llm_fallback=True,
+        llm_disambiguate=True,
+    ) == "desenvolvimento"
+
+
+def test_ambiguous_without_llm_returns_first():
+    assert classify_agent("como impugnar essa licitação", llm_fallback=False) == "juridico"
+
+
+def test_no_match_uses_llm(monkeypatch):
+    monkeypatch.setattr(
+        "app_factory._classify_agent_llm",
+        lambda msg, candidates=None: "investigador",
+    )
+    assert classify_agent("me explica o universo", llm_fallback=True) == "investigador"

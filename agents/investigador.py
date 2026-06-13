@@ -117,6 +117,11 @@ class InvestigadorAgent(BaseAgent):
                 resultados[nome] = {"erro": str(exc)}
                 yield {"progress": f"⚠️ {nome} falhou: {str(exc)[:60]}"}
 
+        from agents.skills import extract_sources
+        sources = extract_sources(resultados)
+        if sources:
+            yield {"sources": sources}
+
         # Phase 3 — SYNTHESIZE
         yield {"progress": "✍️ Gerando relatório investigativo..."}
         messages = self._build_synthesize_messages(message, resultados)
