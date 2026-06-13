@@ -1,4 +1,4 @@
-"""Task Cronos — mantido por compatibilidade; delega ao digest matinal."""
+"""Task Cronos — digest matinal unificado."""
 
 from services.morning_digest import run_morning_digest
 

@@ -8,6 +8,7 @@ db/hermes.db
 
 logs/
 exports/
+backups/
 
 vigia-service.err.log
 vigia-service.wrapper.log

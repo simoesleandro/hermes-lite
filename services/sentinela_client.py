@@ -58,7 +58,7 @@ class SentinelaClient:
             if severidade:
                 rows = conn.execute(
                     """
-                    SELECT a.tipo, a.severidade, a.descricao, a.metodologia,
+                    SELECT a.id, a.numero_controle_pncp, a.tipo, a.severidade, a.descricao, a.metodologia,
                            f.razao_social AS fornecedor, c.valor_global AS valor,
                            c.data_assinatura AS data
                     FROM alertas a
@@ -73,7 +73,7 @@ class SentinelaClient:
             else:
                 rows = conn.execute(
                     """
-                    SELECT a.tipo, a.severidade, a.descricao, a.metodologia,
+                    SELECT a.id, a.numero_controle_pncp, a.tipo, a.severidade, a.descricao, a.metodologia,
                            f.razao_social AS fornecedor, c.valor_global AS valor,
                            c.data_assinatura AS data
                     FROM alertas a

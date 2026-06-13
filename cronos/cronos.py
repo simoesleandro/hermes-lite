@@ -10,7 +10,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env
 
 from cronos.notifier import notify
 from cronos.scheduler import run_loop
-from cronos.tasks import briefing, resumo_saude, sentinela_semanal, github_radar
+from cronos.tasks import morning_digest, resumo_saude, sentinela_semanal, backup
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,21 +39,21 @@ def _wrap(name: str, fn):
 
 _TASKS = [
     {
-        "name": "briefing",
-        "fn": _wrap("briefing", briefing.run),
-        "schedule": {"hour": 9, "minute": 30, "weekday": None},
+        "name": "morning_digest",
+        "fn": _wrap("morning_digest", morning_digest.run),
+        "schedule": {"hour": 7, "minute": 30, "weekday": None},
+        "last_run": None,
+    },
+    {
+        "name": "backup",
+        "fn": _wrap("backup", backup.run),
+        "schedule": {"hour": 3, "minute": 0, "weekday": None},
         "last_run": None,
     },
     {
         "name": "resumo_saude",
         "fn": _wrap("resumo_saude", resumo_saude.run),
         "schedule": {"hour": 22, "minute": 0, "weekday": None},
-        "last_run": None,
-    },
-    {
-        "name": "github_radar",
-        "fn": _wrap("github_radar", github_radar.run),
-        "schedule": {"hour": 7, "minute": 15, "weekday": None},
         "last_run": None,
     },
     {
@@ -69,13 +69,13 @@ def main() -> None:
     if "--test" in sys.argv:
         logger.info("Modo teste — disparando todas as tasks...")
         from cronos.tasks.resumo_saude import run as run_saude
-        from cronos.tasks.briefing import run as run_briefing
+        from cronos.tasks.morning_digest import run as run_digest
         from cronos.tasks.sentinela_semanal import run as run_sentinela
-        from cronos.tasks.github_radar import run as run_radar
+        from cronos.tasks.backup import run as run_backup
+        run_backup()
+        run_digest()
         run_saude()
-        run_briefing()
         run_sentinela()
-        run_radar()
         logger.info("Modo teste concluído.")
         sys.exit(0)
 

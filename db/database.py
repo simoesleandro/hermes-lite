@@ -98,6 +98,14 @@ class Database:
                 )
             """)
             conn.execute("""
+                CREATE TABLE IF NOT EXISTS sentinela_auto_workflows (
+                    alert_key   TEXT PRIMARY KEY,
+                    workflow_id TEXT NOT NULL,
+                    fornecedor  TEXT,
+                    created_at  TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge_docs (
                     id         TEXT PRIMARY KEY,
                     title      TEXT NOT NULL,
@@ -681,6 +689,45 @@ class Database:
                     pass
             out.append(d)
         return out
+
+    # ── Sentinela auto-workflow dedup ─────────────────────────────────────────
+
+    def has_sentinela_auto_workflow(self, alert_key: str) -> bool:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM sentinela_auto_workflows WHERE alert_key = ?",
+                (alert_key,),
+            ).fetchone()
+        return row is not None
+
+    def save_sentinela_auto_workflow(
+        self,
+        alert_key: str,
+        workflow_id: str,
+        fornecedor: str | None = None,
+    ) -> None:
+        now = datetime.utcnow().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO sentinela_auto_workflows
+                (alert_key, workflow_id, fornecedor, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (alert_key, workflow_id, fornecedor, now),
+            )
+            conn.commit()
+
+    def list_sentinela_auto_workflows(self, limit: int = 20) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT alert_key, workflow_id, fornecedor, created_at
+                FROM sentinela_auto_workflows ORDER BY created_at DESC LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     # ── GitHub Radar ──────────────────────────────────────────────────────────
 

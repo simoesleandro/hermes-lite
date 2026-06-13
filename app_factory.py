@@ -580,15 +580,10 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             persist = request.form.get("persist", "").lower() in ("1", "true", "yes")
             kb_id = None
             kb_chunks = 0
-            if persist and text.strip():
-                kb_id = str(uuid.uuid4())
-                kb_chunks = db.ingest_knowledge_doc(
-                    kb_id,
-                    title=f.filename,
-                    text=text,
-                    filename=f.filename,
-                    source="pdf",
-                )
+            from services.knowledge_ingest import ingest_pdf, should_persist_pdf
+
+            if should_persist_pdf(form_persist=persist) and text.strip():
+                kb_id, kb_chunks = ingest_pdf(db, text, f.filename, source="pdf")
 
             return jsonify({
                 "success": True,

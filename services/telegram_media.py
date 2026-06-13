@@ -84,14 +84,8 @@ def default_caption(message: dict, kind: str) -> str:
 
 
 def maybe_persist_pdf(db, pdf: dict) -> tuple[str | None, int]:
-    if os.getenv("TELEGRAM_KNOWLEDGE_PERSIST", "0") != "1":
+    from services.knowledge_ingest import ingest_pdf, telegram_persist_enabled
+
+    if not telegram_persist_enabled():
         return None, 0
-    doc_id = str(uuid.uuid4())
-    chunks = db.ingest_knowledge_doc(
-        doc_id,
-        title=pdf["filename"],
-        text=pdf["text"],
-        filename=pdf["filename"],
-        source="telegram",
-    )
-    return doc_id, chunks
+    return ingest_pdf(db, pdf["text"], pdf["filename"], source="telegram")
