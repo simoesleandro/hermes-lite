@@ -320,6 +320,51 @@ def create_app(*, enable_cors: bool = False) -> Flask:
         agent = request.args.get("agent", "").strip() or None
         return jsonify({"skills": list_skills(agent)})
 
+    @app.route("/api/tasks")
+    def list_tasks_route():
+        status = request.args.get("status", "").strip() or None
+        include_done = request.args.get("include_done", "").lower() in ("1", "true", "yes")
+        tasks = db.list_tasks(status=status, include_done=include_done)
+        return jsonify({"tasks": tasks, "summary": db.tasks_summary()})
+
+    @app.route("/api/tasks", methods=["POST"])
+    def create_task_route():
+        data = request.get_json(force=True)
+        title = (data.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "title é obrigatório"}), 400
+        status = (data.get("status") or "inbox").lower()
+        if status not in ("inbox", "today", "week", "done"):
+            return jsonify({"error": "status inválido"}), 400
+        priority = (data.get("priority") or "medium").lower()
+        if priority not in ("low", "medium", "high"):
+            priority = "medium"
+        task_id = data.get("id") or str(uuid.uuid4())
+        db.create_task(task_id, title, status=status, priority=priority, notes=data.get("notes"))
+        return jsonify({"ok": True, "id": task_id})
+
+    @app.route("/api/tasks/<task_id>", methods=["PATCH"])
+    def update_task_route(task_id: str):
+        data = request.get_json(force=True)
+        if not db.get_task(task_id):
+            return jsonify({"error": "tarefa não encontrada"}), 404
+        ok = db.update_task(
+            task_id,
+            title=data.get("title"),
+            status=data.get("status"),
+            priority=data.get("priority"),
+            notes=data.get("notes"),
+        )
+        if not ok and not any(k in data for k in ("title", "status", "priority", "notes")):
+            return jsonify({"error": "nada para atualizar"}), 400
+        return jsonify({"ok": True})
+
+    @app.route("/api/tasks/<task_id>", methods=["DELETE"])
+    def delete_task_route(task_id: str):
+        if not db.delete_task(task_id):
+            return jsonify({"error": "tarefa não encontrada"}), 404
+        return jsonify({"ok": True})
+
     @app.route("/upload/pdf", methods=["POST"])
     def upload_pdf():
         if "file" not in request.files:

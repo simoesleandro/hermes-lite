@@ -46,6 +46,19 @@ class Database:
                 )
             """)
             conn.execute("""
+                CREATE TABLE IF NOT EXISTS tasks (
+                    id         TEXT PRIMARY KEY,
+                    title      TEXT NOT NULL,
+                    status     TEXT NOT NULL DEFAULT 'inbox'
+                               CHECK(status IN ('inbox', 'today', 'week', 'done')),
+                    priority   TEXT NOT NULL DEFAULT 'medium'
+                               CHECK(priority IN ('low', 'medium', 'high')),
+                    notes      TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
                     content,
                     conversation_id UNINDEXED,
@@ -268,6 +281,163 @@ class Database:
                     (fts_query, limit),
                 ).fetchall()
         return [dict(row) for row in rows]
+
+    # ── GTD tasks ─────────────────────────────────────────────────────────────
+
+    def create_task(
+        self,
+        task_id: str,
+        title: str,
+        status: str = "inbox",
+        priority: str = "medium",
+        notes: str | None = None,
+    ) -> None:
+        now = datetime.utcnow().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO tasks (id, title, status, priority, notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (task_id, title.strip()[:200], status, priority, notes, now, now),
+            )
+            conn.commit()
+
+    def list_tasks(
+        self,
+        status: str | None = None,
+        include_done: bool = False,
+        limit: int = 50,
+    ) -> list[dict]:
+        with self._connect() as conn:
+            if status:
+                rows = conn.execute(
+                    """
+                    SELECT id, title, status, priority, notes, created_at, updated_at
+                    FROM tasks WHERE status = ?
+                    ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+                             updated_at DESC LIMIT ?
+                    """,
+                    (status, limit),
+                ).fetchall()
+            elif include_done:
+                rows = conn.execute(
+                    """
+                    SELECT id, title, status, priority, notes, created_at, updated_at
+                    FROM tasks ORDER BY updated_at DESC LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT id, title, status, priority, notes, created_at, updated_at
+                    FROM tasks WHERE status != 'done'
+                    ORDER BY CASE status WHEN 'today' THEN 0 WHEN 'week' THEN 1 ELSE 2 END,
+                             CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+                             updated_at DESC LIMIT ?
+                    """,
+                    (limit,),
+                ).fetchall()
+        return [dict(row) for row in rows]
+
+    def get_task(self, task_id: str) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id, title, status, priority, notes, created_at, updated_at FROM tasks WHERE id = ?",
+                (task_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def find_open_task(self, fragment: str) -> dict | None:
+        frag = fragment.strip()
+        if not frag:
+            return None
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id, title, status, priority, notes, created_at, updated_at
+                FROM tasks
+                WHERE status != 'done' AND LOWER(title) LIKE LOWER(?)
+                ORDER BY updated_at DESC LIMIT 1
+                """,
+                (f"%{frag}%",),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def update_task(
+        self,
+        task_id: str,
+        title: str | None = None,
+        status: str | None = None,
+        priority: str | None = None,
+        notes: str | None = None,
+    ) -> bool:
+        fields: list[str] = []
+        values: list = []
+        if title is not None:
+            fields.append("title = ?")
+            values.append(title.strip()[:200])
+        if status is not None:
+            fields.append("status = ?")
+            values.append(status)
+        if priority is not None:
+            fields.append("priority = ?")
+            values.append(priority)
+        if notes is not None:
+            fields.append("notes = ?")
+            values.append(notes)
+        if not fields:
+            return False
+        fields.append("updated_at = ?")
+        values.append(datetime.utcnow().isoformat())
+        values.append(task_id)
+        with self._connect() as conn:
+            cur = conn.execute(
+                f"UPDATE tasks SET {', '.join(fields)} WHERE id = ?",
+                values,
+            )
+            conn.commit()
+        return cur.rowcount > 0
+
+    def complete_task(self, task_id: str) -> bool:
+        return self.update_task(task_id, status="done")
+
+    def delete_task(self, task_id: str) -> bool:
+        with self._connect() as conn:
+            cur = conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            conn.commit()
+        return cur.rowcount > 0
+
+    def tasks_summary(self) -> dict:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT status, COUNT(*) AS n FROM tasks WHERE status != 'done' GROUP BY status",
+            ).fetchall()
+        counts = {row["status"]: row["n"] for row in rows}
+        return {
+            "today": counts.get("today", 0),
+            "week": counts.get("week", 0),
+            "inbox": counts.get("inbox", 0),
+            "total_open": sum(counts.values()),
+        }
+
+    def format_tasks_context(self) -> str:
+        sections = []
+        labels = {"today": "Hoje", "week": "Esta semana", "inbox": "Inbox"}
+        for status in ("today", "week", "inbox"):
+            tasks = self.list_tasks(status=status, limit=15)
+            if not tasks:
+                continue
+            lines = [f"=== {labels[status].upper()} ==="]
+            for i, t in enumerate(tasks, 1):
+                pri = t.get("priority", "medium")
+                mark = "!" if pri == "high" else ""
+                lines.append(f"{i}. [{pri}{mark}] {t['title']}")
+            sections.append("\n".join(lines))
+        if not sections:
+            return "Nenhuma tarefa aberta no GTD."
+        return "\n\n".join(sections)
 
     def export_conversation_markdown(self, conv_id: str) -> str:
         meta = self.get_conversation(conv_id)

@@ -126,6 +126,7 @@ function updateBadge(agentKey) {
   agentBadgeLabel.textContent = meta.label;
   attachBtn.style.display     = "flex";
   toggleSentinelaPanel(agentKey);
+  toggleTasksPanel(agentKey);
   updateSkillBadge(agentKey);
 }
 
@@ -231,6 +232,49 @@ function dequeueAndSend() {
     updateSkillBadge(state.currentAgent);
   }
   dispatchMessage(next.text);
+}
+
+function toggleTasksPanel(agentKey) {
+  const panel = document.getElementById("tasks-panel");
+  if (!panel) return;
+  if (agentKey === "produtividade") {
+    panel.hidden = false;
+    loadTasksPanel();
+  } else {
+    panel.hidden = true;
+  }
+}
+
+async function loadTasksPanel() {
+  const panel = document.getElementById("tasks-panel");
+  if (!panel || panel.hidden) return;
+  panel.innerHTML = '<div class="tasks-loading">Carregando…</div>';
+  try {
+    const res  = await fetch("/api/tasks");
+    const data = await res.json();
+    renderTasksPanel(panel, data);
+  } catch {
+    panel.innerHTML = '<div class="tasks-offline">GTD indisponível</div>';
+  }
+}
+
+function renderTasksPanel(panel, data) {
+  const summary = data.summary || {};
+  const tasks   = data.tasks || [];
+  const today   = tasks.filter((t) => t.status === "today").slice(0, 5);
+  panel.innerHTML = `
+    <div class="tasks-panel-title">GTD — Produtividade</div>
+    <div class="tasks-stats">
+      <span class="tasks-stat">${summary.today ?? 0} hoje</span>
+      <span class="tasks-stat">${summary.week ?? 0} semana</span>
+      <span class="tasks-stat">${summary.inbox ?? 0} inbox</span>
+    </div>
+    <ul class="tasks-list">
+      ${today.map((t) => `
+        <li class="pri-${t.priority || "medium"}">${escapeHtml(t.title)}</li>
+      `).join("") || "<li>Nenhuma tarefa para hoje</li>"}
+    </ul>
+  `;
 }
 
 function toggleSentinelaPanel(agentKey) {
@@ -622,6 +666,8 @@ async function dispatchMessage(message) {
     input.focus();
 
     if (typeof loadConversations === "function") loadConversations();
+    if (agentSnap === "produtividade") loadTasksPanel();
+    if (agentSnap === "sentinela" || agentSnap === "juridico") loadSentinelaPanel();
     setTimeout(dequeueAndSend, 0);
   }
 

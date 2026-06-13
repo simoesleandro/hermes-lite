@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mcp.server.fastmcp import FastMCP
 
 from app_factory import classify_agent
+from db.database import Database
 from services.investigador_tools import TOOLS_REGISTRY
 from services.sentinela_client import SentinelaClient
 from services.syshealth_client import SysHealthClient
@@ -33,6 +34,7 @@ AGENTS = [
 
 _sentinela = SentinelaClient()
 _syshealth = SysHealthClient()
+_db = Database()
 
 
 def _json(data) -> str:
@@ -128,6 +130,27 @@ def investigador_buscar_alertas(termo: str) -> str:
 def investigador_buscar_web(query: str) -> str:
     """Busca na web via DuckDuckGo (máx. 5 resultados)."""
     return _json(TOOLS_REGISTRY["buscar_web"](query))
+
+
+@mcp.tool()
+def gtd_list_tasks(status: str = "") -> str:
+    """Lista tarefas GTD (status: inbox, today, week ou vazio para abertas)."""
+    st = status.strip().lower() or None
+    if st and st not in ("inbox", "today", "week", "done"):
+        return _json({"error": "status inválido"})
+    return _json({"tasks": _db.list_tasks(status=st), "summary": _db.tasks_summary()})
+
+
+@mcp.tool()
+def gtd_add_task(title: str, status: str = "inbox") -> str:
+    """Adiciona tarefa GTD (status: inbox, today, week)."""
+    import uuid as _uuid
+    st = status.strip().lower() or "inbox"
+    if st not in ("inbox", "today", "week"):
+        return _json({"error": "status inválido"})
+    tid = str(_uuid.uuid4())
+    _db.create_task(tid, title.strip(), status=st)
+    return _json({"ok": True, "id": tid, "title": title.strip(), "status": st})
 
 
 if __name__ == "__main__":
