@@ -167,8 +167,8 @@ def handoff_investigador_juridico(dossier: str, sources_json: str = "[]") -> str
 
 @mcp.tool()
 def knowledge_search(query: str, limit: int = 5) -> str:
-    """Busca na base de conhecimento local (FTS5)."""
-    return _json({"results": _db.search_knowledge(query, limit=min(limit, 10))})
+    """Busca na base de conhecimento local (FTS5 + embeddings híbrido)."""
+    return _json({"results": _db.search_knowledge_hybrid(query, limit=min(limit, 10))})
 
 
 @mcp.tool()

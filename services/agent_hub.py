@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import uuid
+from collections.abc import Callable
+
 from agents.analista import AnalistaAgent
 from agents.conhecimento import ConhecimentoAgent
 from agents.desenvolvimento import DesenvolvimentoAgent
@@ -69,6 +72,7 @@ class AgentHub:
         session_id: str,
         agent_name: str | None = None,
         skill_id: str | None = None,
+        image_b64: str | None = None,
     ) -> tuple[str, str]:
         agent_name = agent_name or self._locked_agent.get(session_id) or classify_agent(message)
         if agent_name not in self.agents:
@@ -78,11 +82,73 @@ class AgentHub:
             message = apply_skill(agent_name, skill_id, message)
 
         agent = self.agents[agent_name]
-        response = agent.process(message, session_id)
+        if image_b64 and agent_name == "treino":
+            response = agent.process(message, session_id, image_b64=image_b64)
+        else:
+            response = agent.process(message, session_id)
         self.db.save_message(agent=agent_name, role="user", content=message, session_id=session_id)
         self.db.save_message(agent=agent_name, role="assistant", content=response, session_id=session_id)
         label = AGENT_LABELS.get(agent_name, agent_name)
         return f"🤖 {label}\n\n{response}", agent_name
+
+    def chat_stream(
+        self,
+        message: str,
+        session_id: str,
+        agent_name: str | None = None,
+        skill_id: str | None = None,
+        image_b64: str | None = None,
+        on_chunk: Callable[[str], None] | None = None,
+    ) -> tuple[str, str]:
+        """Stream de resposta; on_chunk(texto_acumulado) a cada atualização."""
+        agent_name = agent_name or self._locked_agent.get(session_id) or classify_agent(message)
+        if agent_name not in self.agents:
+            agent_name = "conhecimento"
+
+        if skill_id:
+            message = apply_skill(agent_name, skill_id, message)
+
+        agent = self.agents[agent_name]
+        if not hasattr(agent, "stream"):
+            return self.chat(message, session_id, agent_name=agent_name, image_b64=image_b64)
+
+        parts: list[str] = []
+        stream_fn = agent.stream
+        if image_b64 and agent_name == "treino":
+            gen = stream_fn(message, session_id, image_b64=image_b64)
+        else:
+            gen = stream_fn(message, session_id)
+
+        for chunk in gen:
+            parts.append(chunk)
+            if on_chunk:
+                on_chunk("".join(parts))
+
+        response = "".join(parts)
+        self.db.save_message(agent=agent_name, role="user", content=message, session_id=session_id)
+        self.db.save_message(agent=agent_name, role="assistant", content=response, session_id=session_id)
+        label = AGENT_LABELS.get(agent_name, agent_name)
+        return f"🤖 {label}\n\n{response}", agent_name
+
+    def ingest_pdf_for_session(
+        self,
+        session_id: str,
+        text: str,
+        filename: str,
+        pages: int,
+        persist: bool = False,
+    ) -> tuple[str | None, int]:
+        leitor = self.agents["leitor"]
+        leitor.set_pdf_context(text, filename, pages)
+        self.set_locked_agent(session_id, "leitor")
+        kb_id, chunks = None, 0
+        if persist and text.strip():
+            doc_id = str(uuid.uuid4())
+            chunks = self.db.ingest_knowledge_doc(
+                doc_id, title=filename, text=text, filename=filename, source="telegram",
+            )
+            kb_id = doc_id
+        return kb_id, chunks
 
     def handoff_investigador(
         self,

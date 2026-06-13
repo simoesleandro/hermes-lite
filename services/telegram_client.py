@@ -75,8 +75,10 @@ def send_message(
     text: str,
     parse_mode: str | None = None,
     reply_markup: dict | None = None,
-) -> None:
+) -> int | None:
+    """Envia mensagem; retorna message_id do último chunk."""
     chunks = split_message(text)
+    last_id: int | None = None
     for i, chunk in enumerate(chunks):
         payload: dict = {"chat_id": chat_id, "text": chunk}
         if parse_mode:
@@ -84,14 +86,44 @@ def send_message(
         if reply_markup and i == len(chunks) - 1:
             payload["reply_markup"] = reply_markup
         try:
-            _api_post("sendMessage", payload)
+            body = _api_post("sendMessage", payload)
+            last_id = body.get("result", {}).get("message_id")
         except urllib.error.HTTPError as exc:
             body = exc.read().decode()
             logger.error("sendMessage falhou: %s — %s", exc, body)
             if parse_mode:
-                send_message(chat_id, chunk, parse_mode=None, reply_markup=reply_markup if i == len(chunks) - 1 else None)
+                last_id = send_message(
+                    chat_id, chunk, parse_mode=None,
+                    reply_markup=reply_markup if i == len(chunks) - 1 else None,
+                )
             else:
                 raise
+    return last_id
+
+
+def edit_message_text(chat_id: int | str, message_id: int, text: str) -> None:
+    payload: dict = {"chat_id": chat_id, "message_id": message_id, "text": text[:MAX_MESSAGE_LEN]}
+    try:
+        _api_post("editMessageText", payload)
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode()
+        if "message is not modified" in body.lower():
+            return
+        logger.debug("editMessageText: %s — %s", exc, body)
+
+
+def download_file_bytes(file_id: str) -> bytes:
+    """Baixa arquivo do Telegram pelo file_id."""
+    token = bot_token()
+    if not token:
+        raise ValueError("TELEGRAM_BOT_TOKEN não configurado")
+    meta = _api_post("getFile", {"file_id": file_id})
+    file_path = meta.get("result", {}).get("file_path")
+    if not file_path:
+        raise RuntimeError("file_path ausente em getFile")
+    url = f"https://api.telegram.org/file/bot{token}/{file_path}"
+    with urllib.request.urlopen(url, timeout=120) as resp:
+        return resp.read()
 
 
 def answer_callback_query(callback_query_id: str, text: str | None = None) -> None:
