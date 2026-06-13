@@ -377,6 +377,18 @@ def create_app(*, enable_cors: bool = False) -> Flask:
         message = build_juridico_handoff_message(dossier, sources)
         return jsonify({"agent": "juridico", "skill": "parecer", "message": message})
 
+    @app.route("/api/handoff/investigador", methods=["POST"])
+    def handoff_investigador_route():
+        from services.handoff import build_investigador_handoff_message
+
+        data = request.get_json(force=True)
+        alert = data.get("alert") if isinstance(data.get("alert"), dict) else None
+        context = (data.get("context") or data.get("text") or "").strip()
+        if not alert and not context:
+            return jsonify({"error": "alert ou context é obrigatório"}), 400
+        message = build_investigador_handoff_message(context, alert)
+        return jsonify({"agent": "investigador", "skill": "rapido", "message": message})
+
     @app.route("/api/knowledge")
     def list_knowledge_route():
         return jsonify({"documents": db.list_knowledge_docs()})

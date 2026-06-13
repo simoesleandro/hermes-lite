@@ -367,14 +367,27 @@ function renderSentinelaPanel(panel, data) {
       <span class="sentinela-stat sev-media">${sev.media ?? 0} média</span>
     </div>
     <ul class="sentinela-alerts">
-      ${alertas.map((a) => `
+      ${alertas.map((a, i) => `
         <li class="sev-${a.severidade || 'baixa'}">
-          <strong>${escapeHtml(a.fornecedor || "N/D")}</strong>
-          <span>${escapeHtml(a.tipo || "")}</span>
+          <div class="sentinela-alert-body">
+            <strong>${escapeHtml(a.fornecedor || "N/D")}</strong>
+            <span>${escapeHtml(a.tipo || "")}</span>
+          </div>
+          <button type="button" class="sentinela-inv-btn" data-idx="${i}">Investigar</button>
         </li>
       `).join("") || "<li>Nenhum alerta crítico</li>"}
     </ul>
   `;
+  panel._alertas = alertas;
+  panel.querySelectorAll(".sentinela-inv-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx, 10);
+      if (panel._alertas && panel._alertas[idx]) {
+        handoffToInvestigador(panel._alertas[idx], "");
+      }
+    });
+  });
 }
 
 function escapeHtml(text) {
@@ -404,6 +417,31 @@ async function handoffToJuridico(dossier, sources) {
     dispatchMessage(data.message);
   } catch {
     appendSystemMessage("Erro ao encaminhar dossiê ao Jurídico");
+  }
+}
+
+async function handoffToInvestigador(alert, context) {
+  if (state.isStreaming) return;
+  try {
+    const res = await fetch("/api/handoff/investigador", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ alert: alert || null, context: context || "" }),
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    state.currentAgent = "investigador";
+    state.agentLocked = true;
+    state.activeSkill = data.skill || "rapido";
+    updateBadge("investigador");
+    agentBadge.classList.add("locked");
+    updateSkillBadge("investigador");
+    toggleSentinelaPanel(state.currentAgent);
+    toggleKnowledgePanel(state.currentAgent);
+    appendSystemMessage("Alerta encaminhado ao Investigador…");
+    dispatchMessage(data.message);
+  } catch {
+    appendSystemMessage("Erro ao encaminhar ao Investigador");
   }
 }
 
@@ -743,6 +781,16 @@ async function dispatchMessage(message) {
       handoffBtn.title = "Enviar dossiê ao agente Jurídico";
       handoffBtn.addEventListener("click", () => handoffToJuridico(rawText, streamSources));
       bubbleMeta.appendChild(handoffBtn);
+    }
+
+    if ((agentSnap === "sentinela" || agentSnap === "juridico") && rawText.trim()) {
+      const invBtn = document.createElement("button");
+      invBtn.type = "button";
+      invBtn.className = "handoff-btn handoff-btn-inv";
+      invBtn.textContent = "Investigar aprofundado";
+      invBtn.title = "Encaminhar ao Investigador";
+      invBtn.addEventListener("click", () => handoffToInvestigador(null, rawText));
+      bubbleMeta.appendChild(invBtn);
     }
 
     if (progressSteps) {

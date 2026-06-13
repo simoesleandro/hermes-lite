@@ -177,5 +177,19 @@ def knowledge_list() -> str:
     return _json({"documents": _db.list_knowledge_docs()})
 
 
+@mcp.tool()
+def handoff_sentinela_investigador(context: str, alert_json: str = "") -> str:
+    """Monta handoff Sentinela → Investigador. alert_json: JSON opcional com fornecedor, tipo, etc."""
+    from services.handoff import build_investigador_handoff_message
+    alert = None
+    if alert_json.strip():
+        try:
+            alert = json.loads(alert_json)
+        except json.JSONDecodeError:
+            pass
+    message = build_investigador_handoff_message(context, alert)
+    return _json({"agent": "investigador", "skill": "rapido", "message": message})
+
+
 if __name__ == "__main__":
     mcp.run()
