@@ -7,7 +7,6 @@ import subprocess
 import time
 import urllib.request
 import uuid
-from concurrent.futures import ThreadPoolExecutor, wait as futures_wait
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
@@ -659,98 +658,42 @@ def create_app(*, enable_cors: bool = False) -> Flask:
 
     @app.route("/api/status")
     def api_status():
-        checks = {
-            "groq": _check_groq,
-            "gemini": _check_gemini,
-            "gemma": _check_gemma,
-            "syshealth": _check_syshealth,
-            "sentinela": _check_sentinela,
-        }
-        results: dict = {}
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = {executor.submit(fn): name for name, fn in checks.items()}
-            done, _ = futures_wait(futures, timeout=6)
-            for future in done:
-                name = futures[future]
-                try:
-                    results[name] = future.result()
-                except Exception:
-                    results[name] = {"status": "offline", "latency_ms": None}
-        for future, name in futures.items():
-            if name not in results:
-                results[name] = {"status": "offline", "latency_ms": None}
-
+        from services.health import get_health
+        h = get_health()
         return jsonify({
-            "providers": {k: results[k] for k in ("groq", "gemini", "gemma") if k in results},
-            "services": {k: results[k] for k in ("syshealth", "sentinela") if k in results},
-            "timestamp": datetime.utcnow().isoformat(),
+            "providers": h["providers"],
+            "services": h["services"],
+            "timestamp": h["timestamp"],
         })
+
+    @app.route("/api/health")
+    def api_health():
+        from services.health import get_health
+        return jsonify(get_health())
 
     return app
 
 
 def _check_groq() -> dict:
-    api_key = os.getenv("GROQ_API_KEY", "")
-    if not api_key:
-        return {"status": "offline", "latency_ms": None}
-    try:
-        from groq import Groq
-        t = time.time()
-        Groq(api_key=api_key).models.list()
-        return {"status": "online", "latency_ms": round((time.time() - t) * 1000)}
-    except Exception:
-        return {"status": "offline", "latency_ms": None}
+    from services.health import check_groq
+    return check_groq()
 
 
 def _check_gemini() -> dict:
-    api_key = os.getenv("GEMINI_API_KEY", "")
-    if not api_key:
-        return {"status": "offline", "latency_ms": None}
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        t = time.time()
-        list(genai.list_models())
-        return {"status": "online", "latency_ms": round((time.time() - t) * 1000)}
-    except Exception:
-        return {"status": "offline", "latency_ms": None}
+    from services.health import check_gemini
+    return check_gemini()
 
 
 def _check_gemma() -> dict:
-    model_id = os.getenv("GEMMA_MODEL", "gemma-4-4b-it")
-    if not os.getenv("GEMINI_API_KEY", ""):
-        return {"status": "offline", "latency_ms": None, "model": model_id}
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
-        t = time.time()
-        genai.GenerativeModel(model_id).generate_content("ping")
-        return {"status": "online", "latency_ms": round((time.time() - t) * 1000), "model": model_id}
-    except Exception:
-        return {"status": "offline", "latency_ms": None, "model": model_id}
+    from services.health import check_gemma
+    return check_gemma()
 
 
 def _check_syshealth() -> dict:
-    base = os.getenv("SYSHEALTH_URL", "http://localhost:5060").rstrip("/")
-    try:
-        req = urllib.request.Request(f"{base}/health")
-        t0 = time.monotonic()
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            resp.read()
-        return {"status": "online", "latency_ms": round((time.monotonic() - t0) * 1000)}
-    except Exception:
-        return {"status": "offline"}
+    from services.health import check_syshealth
+    return check_syshealth()
 
 
 def _check_sentinela() -> dict:
-    from services.sentinela_client import SENTINELA_DB
-    if not os.path.exists(SENTINELA_DB):
-        return {"status": "offline", "contratos": None}
-    try:
-        import sqlite3
-        conn = sqlite3.connect(f"file:{SENTINELA_DB}?mode=ro", uri=True)
-        count = conn.execute("SELECT COUNT(*) FROM contratos").fetchone()[0]
-        conn.close()
-        return {"status": "online", "contratos": count}
-    except Exception:
-        return {"status": "offline", "contratos": None}
+    from services.health import check_sentinela
+    return check_sentinela()

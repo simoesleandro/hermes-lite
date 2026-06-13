@@ -1,0 +1,24 @@
+<service>
+  <id>HermesTelegramBot</id>
+  <name>Hermes Telegram Bot</name>
+  <description>Bot Telegram bidirecional do Hermes Lite (long polling).</description>
+
+  <executable>C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe</executable>
+  <arguments>-m services.telegram_bot</arguments>
+  <workingdirectory>%BASE%</workingdirectory>
+
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="30 sec"/>
+  <onfailure action="restart" delay="1 min"/>
+  <onfailure action="none"/>
+
+  <logmode>rotate</logmode>
+  <logpath>%BASE%\logs\telegram-bot-service</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+
+  <env name="PYTHONUNBUFFERED" value="1"/>
+  <env name="PYTHONIOENCODING" value="utf-8"/>
+</service>

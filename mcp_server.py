@@ -35,6 +35,15 @@ AGENTS = [
 _sentinela = SentinelaClient()
 _syshealth = SysHealthClient()
 _db = Database()
+_hub = None
+
+
+def _hub_instance():
+    global _hub
+    if _hub is None:
+        from services.agent_hub import AgentHub
+        _hub = AgentHub(db=_db)
+    return _hub
 
 
 def _json(data) -> str:
@@ -189,6 +198,67 @@ def handoff_sentinela_investigador(context: str, alert_json: str = "") -> str:
             pass
     message = build_investigador_handoff_message(context, alert)
     return _json({"agent": "investigador", "skill": "rapido", "message": message})
+
+
+@mcp.tool()
+def hermes_health() -> str:
+    """Health unificado: DB, Telegram, providers LLM, SysHealth e Sentinela."""
+    from services.health import get_health
+    return _json(get_health())
+
+
+@mcp.tool()
+def hermes_chat(message: str, agent: str = "", session_id: str = "mcp") -> str:
+    """Chat completo com um agente Hermes (roteamento automático se agent vazio)."""
+    agent_name = agent.strip().lower() or None
+    if agent_name and agent_name not in AGENTS:
+        return _json({"error": f"agente inválido: {agent_name}"})
+    reply, used = _hub_instance().chat(message.strip(), session_id, agent_name=agent_name)
+    return _json({"agent": used, "response": reply})
+
+
+@mcp.tool()
+def telegram_notify(message: str, title: str = "") -> str:
+    """Envia notificação proativa ao chat Telegram configurado."""
+    from services.telegram_client import bot_token, default_chat_id, send_message
+    if not bot_token():
+        return _json({"error": "TELEGRAM_BOT_TOKEN não configurado"})
+    chat_id = default_chat_id()
+    if not chat_id:
+        return _json({"error": "TELEGRAM_CHAT_ID não configurado"})
+    text = f"{title.strip()}\n\n{message.strip()}" if title.strip() else message.strip()
+    send_message(chat_id, text)
+    return _json({"ok": True, "chat_id": chat_id})
+
+
+@mcp.tool()
+def export_conversation(conversation_id: str) -> str:
+    """Exporta conversa como Markdown."""
+    md = _db.export_conversation_markdown(conversation_id.strip())
+    if not md:
+        return _json({"error": "conversa não encontrada"})
+    return _json({"conversation_id": conversation_id, "markdown": md})
+
+
+@mcp.tool()
+def git_status() -> str:
+    """Status git do repositório hermes-lite (branch + status -sb)."""
+    from services.git_tools import git_branch, git_status_short
+    return _json({"branch": git_branch(), "status": git_status_short()})
+
+
+@mcp.tool()
+def git_diff(staged: bool = False, max_lines: int = 150) -> str:
+    """Diff git (working tree ou staged)."""
+    from services.git_tools import git_diff as _git_diff
+    return _json({"diff": _git_diff(max_lines=min(max_lines, 300), staged=staged)})
+
+
+@mcp.tool()
+def git_log(limit: int = 8) -> str:
+    """Últimos commits (oneline)."""
+    from services.git_tools import git_log as _git_log
+    return _json({"log": _git_log(min(limit, 20))})
 
 
 if __name__ == "__main__":
