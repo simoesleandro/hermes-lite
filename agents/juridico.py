@@ -72,6 +72,7 @@ class JuridicoAgent(BaseAgent):
         system = (
             self.system_prompt
             + f"\n\n=== DADOS REAIS DO SENTINELA RJ ===\n{context}"
+            + self._facts_block()
             + self._memory_block(conversation_id)
         )
         if is_juridico_handoff(message):

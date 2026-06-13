@@ -128,6 +128,8 @@ function updateBadge(agentKey) {
   toggleSentinelaPanel(agentKey);
   toggleTasksPanel(agentKey);
   toggleKnowledgePanel(agentKey);
+  toggleFactsPanel();
+  toggleMetricsPanel(agentKey);
   updateSkillBadge(agentKey);
 }
 
@@ -233,6 +235,80 @@ function dequeueAndSend() {
     updateSkillBadge(state.currentAgent);
   }
   dispatchMessage(next.text);
+}
+
+function toggleFactsPanel() {
+  const panel = document.getElementById("facts-panel");
+  if (!panel) return;
+  panel.hidden = false;
+  loadFactsPanel();
+}
+
+function toggleMetricsPanel(agentKey) {
+  const panel = document.getElementById("metrics-panel");
+  if (!panel) return;
+  if (agentKey === "ops") {
+    panel.hidden = false;
+    loadMetricsPanel();
+  } else {
+    panel.hidden = true;
+  }
+}
+
+async function loadFactsPanel() {
+  const panel = document.getElementById("facts-panel");
+  if (!panel || panel.hidden) return;
+  try {
+    const res = await fetch("/api/facts");
+    const data = await res.json();
+    const facts = data.facts || [];
+    panel.innerHTML = `
+      <div class="facts-panel-title">Memória</div>
+      <ul class="facts-list">
+        ${facts.slice(0, 6).map((f) => `
+          <li><strong>${escapeHtml(f.key)}</strong>: ${escapeHtml(f.value)}</li>
+        `).join("") || "<li class='facts-empty'>Digite «lembrar que …»</li>"}
+      </ul>
+    `;
+  } catch {
+    panel.innerHTML = '<div class="facts-offline">Memória indisponível</div>';
+  }
+}
+
+async function loadMetricsPanel() {
+  const panel = document.getElementById("metrics-panel");
+  if (!panel || panel.hidden) return;
+  panel.innerHTML = '<div class="metrics-loading">Carregando…</div>';
+  try {
+    const [mRes, hRes] = await Promise.all([fetch("/api/metrics"), fetch("/api/health")]);
+    const metrics = await mRes.json();
+    const health = await hRes.json();
+    renderMetricsPanel(panel, metrics, health);
+  } catch {
+    panel.innerHTML = '<div class="metrics-offline">Métricas indisponíveis</div>';
+  }
+}
+
+function renderMetricsPanel(panel, metrics, health) {
+  const providers = metrics.by_provider || {};
+  const maxCount = Math.max(1, ...Object.values(providers));
+  const avg = metrics.avg_latency_ms || {};
+  panel.innerHTML = `
+    <div class="metrics-panel-title">Ops — Métricas 24h</div>
+    <div class="metrics-total">${metrics.total_24h ?? 0} completions</div>
+    <div class="metrics-bars">
+      ${Object.entries(providers).map(([name, count]) => `
+        <div class="metrics-bar-row">
+          <span class="metrics-bar-label">${escapeHtml(name)}</span>
+          <div class="metrics-bar-track"><div class="metrics-bar-fill" style="width:${Math.round((count / maxCount) * 100)}%"></div></div>
+          <span class="metrics-bar-val">${count}${avg[name] != null ? ` · ${avg[name]}ms` : ""}</span>
+        </div>
+      `).join("") || "<span class='metrics-empty'>Sem dados ainda</span>"}
+    </div>
+    <div class="metrics-health ${health.ok ? "ok" : "warn"}">
+      ${health.ok ? "Sistema OK" : "Atenção"} · DB ${health.hermes?.database?.status || "?"}
+    </div>
+  `;
 }
 
 function toggleKnowledgePanel(agentKey) {
@@ -812,6 +888,8 @@ async function dispatchMessage(message) {
     if (typeof loadConversations === "function") loadConversations();
     if (agentSnap === "produtividade") loadTasksPanel();
     if (agentSnap === "sentinela" || agentSnap === "juridico") loadSentinelaPanel();
+    if (agentSnap === "ops") loadMetricsPanel();
+    loadFactsPanel();
     setTimeout(dequeueAndSend, 0);
   }
 
@@ -1266,5 +1344,6 @@ updateBadge("conhecimento");
 attachBtn.style.display = "flex";
 loadConversations();
 loadStatus();
+loadFactsPanel();
 setInterval(loadStatus, 30_000);
 input.focus();

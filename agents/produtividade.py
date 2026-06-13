@@ -99,6 +99,7 @@ class ProdutividadeAgent(BaseAgent):
         system = (
             self.system_prompt
             + f"\n\n=== GTD ATUAL ===\n{tasks_ctx}"
+            + self._facts_block()
             + self._memory_block(conversation_id)
         )
         if action:

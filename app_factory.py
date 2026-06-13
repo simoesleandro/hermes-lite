@@ -364,6 +364,27 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             return jsonify({"error": "tarefa não encontrada"}), 404
         return jsonify({"ok": True})
 
+    @app.route("/api/facts")
+    def list_facts_route():
+        category = request.args.get("category") or None
+        return jsonify({"facts": db.list_facts(category=category)})
+
+    @app.route("/api/facts", methods=["POST"])
+    def upsert_fact_route():
+        data = request.get_json(force=True)
+        key = (data.get("key") or "").strip()
+        value = (data.get("value") or "").strip()
+        if not key or not value:
+            return jsonify({"error": "key e value são obrigatórios"}), 400
+        db.upsert_fact(key, value, category=data.get("category"))
+        return jsonify({"ok": True, "key": key})
+
+    @app.route("/api/facts/<key>", methods=["DELETE"])
+    def delete_fact_route(key: str):
+        if not db.delete_fact(key):
+            return jsonify({"error": "fato não encontrado"}), 404
+        return jsonify({"ok": True})
+
     @app.route("/api/handoff/juridico", methods=["POST"])
     def handoff_juridico_route():
         from services.handoff import build_juridico_handoff_message
@@ -557,6 +578,13 @@ def create_app(*, enable_cors: bool = False) -> Flask:
         if not message:
             return jsonify({"error": "Mensagem vazia"}), 400
 
+        from services.facts import try_handle_facts
+        fact_reply = try_handle_facts(message, db)
+        if fact_reply:
+            db.save_message(agent=agent_name, role="user", content=message, session_id=session_id)
+            db.save_message(agent=agent_name, role="assistant", content=fact_reply, session_id=session_id)
+            return jsonify({"agent": agent_name, "response": fact_reply, "source": "facts"})
+
         agent = agents.get(agent_name)
         if agent is None:
             return jsonify({"error": f"Agente '{agent_name}' não encontrado"}), 404
@@ -594,7 +622,23 @@ def create_app(*, enable_cors: bool = False) -> Flask:
                 yield _sse({"error": f"Agente '{agent_name}' não encontrado"})
             return Response(stream_with_context(_err_agent()), mimetype="text/event-stream")
 
+        from services.facts import try_handle_facts
+        fact_reply = try_handle_facts(message, db)
+
         def generate():
+            if fact_reply:
+                db.save_message(
+                    agent=agent_name, role="user", content=message,
+                    session_id=session_id, conversation_id=conv_id,
+                )
+                db.save_message(
+                    agent=agent_name, role="assistant", content=fact_reply,
+                    session_id=session_id, conversation_id=conv_id,
+                )
+                yield _sse({"token": fact_reply})
+                yield _sse({"done": True, "full_response": fact_reply, "provider": "local"})
+                return
+
             if agent_name == "leitor" and session_id in _PDF_SESSIONS:
                 agent.set_pdf_context(**_PDF_SESSIONS[session_id])
             full_response: list[str] = []

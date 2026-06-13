@@ -261,5 +261,29 @@ def git_log(limit: int = 8) -> str:
     return _json({"log": _git_log(min(limit, 20))})
 
 
+@mcp.tool()
+def facts_list(category: str = "") -> str:
+    """Lista fatos persistentes sobre o usuário."""
+    cat = category.strip() or None
+    return _json({"facts": _db.list_facts(category=cat)})
+
+
+@mcp.tool()
+def facts_upsert(key: str, value: str, category: str = "") -> str:
+    """Salva ou atualiza um fato (memória estruturada)."""
+    from services.facts import slug_key
+    k = slug_key(key) if "=" not in key and ":" not in key else key.strip()
+    _db.upsert_fact(k, value.strip(), category=category.strip() or None)
+    return _json({"ok": True, "key": k, "value": value.strip()})
+
+
+@mcp.tool()
+def facts_delete(key: str) -> str:
+    """Remove um fato pela chave."""
+    if not _db.delete_fact(key.strip()):
+        return _json({"error": "fato não encontrado"})
+    return _json({"ok": True})
+
+
 if __name__ == "__main__":
     mcp.run()

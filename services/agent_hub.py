@@ -81,6 +81,14 @@ class AgentHub:
         if skill_id:
             message = apply_skill(agent_name, skill_id, message)
 
+        from services.facts import try_handle_facts
+        fact_reply = try_handle_facts(message, self.db)
+        if fact_reply:
+            self.db.save_message(agent=agent_name, role="user", content=message, session_id=session_id)
+            self.db.save_message(agent=agent_name, role="assistant", content=fact_reply, session_id=session_id)
+            label = AGENT_LABELS.get(agent_name, agent_name)
+            return f"🤖 {label}\n\n{fact_reply}", agent_name
+
         agent = self.agents[agent_name]
         if image_b64 and agent_name == "treino":
             response = agent.process(message, session_id, image_b64=image_b64)

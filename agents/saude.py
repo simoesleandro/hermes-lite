@@ -130,7 +130,7 @@ class SaudeAgent(BaseAgent):
         registro = self._try_register(message)
         summary = self._client.get_health_summary()
         context = "" if summary.get("offline") else self._format_summary(summary)
-        system = self.system_prompt + self._memory_block(conversation_id)
+        system = self.system_prompt + self._facts_block() + self._memory_block(conversation_id)
         if registro:
             system += f"\n\n{registro}"
         if context:

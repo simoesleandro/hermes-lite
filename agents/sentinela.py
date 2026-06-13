@@ -54,7 +54,7 @@ class SentinelaAgent(BaseAgent):
         else:
             context = self._format_context(resumo, alertas, top)
 
-        system = self.system_prompt + f"\n\n{context}" + self._memory_block(conversation_id)
+        system = self.system_prompt + f"\n\n{context}" + self._facts_block() + self._memory_block(conversation_id)
         history = self._get_history(session_id, conversation_id)
         return (
             [{"role": "system", "content": system}]

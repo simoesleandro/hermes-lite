@@ -191,7 +191,7 @@ class OpsAgent(BaseAgent):
         self, message: str, session_id: str, conversation_id: str | None = None,
     ) -> list[dict]:
         history = self._get_history(session_id, conversation_id) if self.db else []
-        system = self.system_prompt + (self._memory_block(conversation_id) if self.db else "")
+        system = self.system_prompt + (self._facts_block() if self.db else "") + (self._memory_block(conversation_id) if self.db else "")
         return (
             [{"role": "system", "content": system}]
             + history

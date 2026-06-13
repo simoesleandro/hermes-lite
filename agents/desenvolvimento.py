@@ -28,7 +28,7 @@ class DesenvolvimentoAgent(BaseAgent):
         image_b64: str | None = None,
         conversation_id: str | None = None,
     ) -> list[dict]:
-        system = self.system_prompt + self._memory_block(conversation_id)
+        system = self.system_prompt + self._facts_block() + self._memory_block(conversation_id)
         if _GIT_RE.search(message):
             from services.git_tools import format_git_context
             ctx = format_git_context(include_diff="diff" in message.lower())

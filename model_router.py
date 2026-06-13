@@ -176,11 +176,25 @@ def get_metrics() -> dict:
     cutoff = time.time() - 86400
     recent = [m for m in _METRICS if m["ts"] >= cutoff]
     by_provider: dict[str, int] = {}
+    by_complexity: dict[str, int] = {}
+    latency_sum: dict[str, float] = {}
+    latency_count: dict[str, int] = {}
     for m in recent:
-        by_provider[m["provider"]] = by_provider.get(m["provider"], 0) + 1
+        p = m["provider"]
+        by_provider[p] = by_provider.get(p, 0) + 1
+        c = m["complexity"]
+        by_complexity[c] = by_complexity.get(c, 0) + 1
+        latency_sum[p] = latency_sum.get(p, 0) + m["latency_ms"]
+        latency_count[p] = latency_count.get(p, 0) + 1
+    avg_latency = {
+        p: round(latency_sum[p] / latency_count[p], 1)
+        for p in latency_sum
+    }
     return {
         "total_24h": len(recent),
         "by_provider": by_provider,
+        "by_complexity": by_complexity,
+        "avg_latency_ms": avg_latency,
         "recent": recent[-20:],
         "models": {"gemma": GEMMA_MODEL, "gemini": GEMINI_MODEL},
     }

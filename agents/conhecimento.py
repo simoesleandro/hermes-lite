@@ -37,6 +37,7 @@ class ConhecimentoAgent(BaseAgent):
         system = (
             self.system_prompt
             + self._knowledge_block(message)
+            + self._facts_block()
             + self._memory_block(conversation_id)
         )
         history = self._get_history(session_id, conversation_id)

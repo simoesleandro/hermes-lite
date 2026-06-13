@@ -59,6 +59,15 @@ class Database:
                 )
             """)
             conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_facts (
+                    key        TEXT PRIMARY KEY,
+                    value      TEXT NOT NULL,
+                    category   TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge_docs (
                     id         TEXT PRIMARY KEY,
                     title      TEXT NOT NULL,
@@ -501,6 +510,73 @@ class Database:
         if not sections:
             return "Nenhuma tarefa aberta no GTD."
         return "\n\n".join(sections)
+
+    # ── User facts (memória estruturada) ──────────────────────────────────────
+
+    def list_facts(self, category: str | None = None, limit: int = 50) -> list[dict]:
+        with self._connect() as conn:
+            if category:
+                rows = conn.execute(
+                    "SELECT key, value, category, updated_at FROM user_facts "
+                    "WHERE category = ? ORDER BY updated_at DESC LIMIT ?",
+                    (category, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT key, value, category, updated_at FROM user_facts "
+                    "ORDER BY updated_at DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+        return [dict(row) for row in rows]
+
+    def upsert_fact(self, key: str, value: str, category: str | None = None) -> None:
+        now = datetime.utcnow().isoformat()
+        key = key.strip()[:80]
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO user_facts (key, value, category, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    category = COALESCE(excluded.category, user_facts.category),
+                    updated_at = excluded.updated_at
+                """,
+                (key, value.strip()[:500], category, now, now),
+            )
+            conn.commit()
+
+    def delete_fact(self, key: str) -> bool:
+        with self._connect() as conn:
+            cur = conn.execute("DELETE FROM user_facts WHERE key = ?", (key.strip(),))
+            conn.commit()
+        return cur.rowcount > 0
+
+    def find_fact(self, fragment: str) -> dict | None:
+        frag = fragment.strip().lower()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT key, value, category FROM user_facts WHERE lower(key) = ?",
+                (frag,),
+            ).fetchone()
+            if row:
+                return dict(row)
+            row = conn.execute(
+                "SELECT key, value, category FROM user_facts WHERE lower(key) LIKE ? LIMIT 1",
+                (f"%{frag}%",),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def format_facts_context(self, limit: int = 20) -> str:
+        facts = self.list_facts(limit=limit)
+        if not facts:
+            return ""
+        lines = ["=== FATOS SOBRE O USUÁRIO (memória persistente — use se relevante) ==="]
+        for f in reversed(facts):
+            cat = f.get("category")
+            prefix = f"[{cat}] " if cat else ""
+            lines.append(f"• {prefix}{f['key']}: {f['value']}")
+        return "\n".join(lines)
 
     # ── Knowledge base (RAG-lite FTS) ─────────────────────────────────────────
 

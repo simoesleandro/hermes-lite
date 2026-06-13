@@ -35,6 +35,12 @@ class BaseAgent:
             + lines
         )
 
+    def _facts_block(self) -> str:
+        if os.getenv("USER_FACTS", "1") != "1":
+            return ""
+        ctx = self.db.format_facts_context()
+        return f"\n\n{ctx}" if ctx else ""
+
     def _build_messages(
         self,
         message: str,
@@ -43,7 +49,7 @@ class BaseAgent:
         conversation_id: str | None = None,
     ) -> list[dict]:
         history = self._get_history(session_id, conversation_id)
-        system = self.system_prompt + self._memory_block(conversation_id)
+        system = self.system_prompt + self._facts_block() + self._memory_block(conversation_id)
         if image_b64:
             mime_type = "image/jpeg"
             data = image_b64
