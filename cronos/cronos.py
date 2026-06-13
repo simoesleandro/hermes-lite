@@ -10,7 +10,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env
 
 from cronos.notifier import notify
 from cronos.scheduler import run_loop
-from cronos.tasks import briefing, resumo_saude, sentinela_semanal
+from cronos.tasks import briefing, resumo_saude, sentinela_semanal, github_radar
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,6 +51,12 @@ _TASKS = [
         "last_run": None,
     },
     {
+        "name": "github_radar",
+        "fn": _wrap("github_radar", github_radar.run),
+        "schedule": {"hour": 7, "minute": 15, "weekday": None},
+        "last_run": None,
+    },
+    {
         "name": "sentinela_semanal",
         "fn": _wrap("sentinela_semanal", sentinela_semanal.run),
         "schedule": {"hour": 9, "minute": 30, "weekday": 0},
@@ -65,9 +71,11 @@ def main() -> None:
         from cronos.tasks.resumo_saude import run as run_saude
         from cronos.tasks.briefing import run as run_briefing
         from cronos.tasks.sentinela_semanal import run as run_sentinela
+        from cronos.tasks.github_radar import run as run_radar
         run_saude()
         run_briefing()
         run_sentinela()
+        run_radar()
         logger.info("Modo teste concluído.")
         sys.exit(0)
 

@@ -895,6 +895,33 @@ body::before {
 .metrics-health.warn { color: #fbbf24; }
 .metrics-empty, .metrics-offline, .metrics-loading { opacity: 0.6; font-size: 0.68rem; }
 
+/* ── Radar GitHub panel ────────────────────────────────── */
+.radar-panel {
+  margin: 0 12px 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.06);
+  font-size: 0.72rem;
+}
+.radar-panel-title { font-weight: 600; margin-bottom: 6px; color: #a5b4fc; }
+.radar-list { list-style: none; padding: 0; margin: 0 0 8px; }
+.radar-list li { padding: 3px 0; border-top: 1px solid rgba(255,255,255,0.06); }
+.radar-score { color: #fcd34d; font-size: 0.65rem; margin-left: 4px; }
+.radar-dl { display: inline-block; font-size: 0.65rem; color: #a5b4fc; margin-right: 8px; }
+.radar-run-btn {
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.12);
+  color: #c7d2fe;
+  font-size: 0.65rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.radar-empty, .radar-offline, .radar-loading { opacity: 0.65; font-size: 0.68rem; }
+
 /* ── GTD tasks panel ─────────────────────────────────── */
 .tasks-panel {
   margin: 0 12px 10px;

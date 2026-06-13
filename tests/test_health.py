@@ -12,7 +12,7 @@ def test_get_health_structure():
     h = get_health(include_providers=False)
     assert "ok" in h
     assert h["hermes"]["database"]["status"] == "online"
-    assert h["hermes"]["agents"] == 11
+    assert h["hermes"]["agents"] == 12
     assert "telegram" in h
     assert h["telegram"]["bot_enabled"] is True
 

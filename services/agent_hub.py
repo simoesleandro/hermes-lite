@@ -12,6 +12,7 @@ from agents.investigador import InvestigadorAgent
 from agents.juridico import JuridicoAgent
 from agents.leitor_pdf import LeitorPDFAgent
 from agents.ops import OpsAgent
+from agents.radar import RadarAgent
 from agents.produtividade import ProdutividadeAgent
 from agents.saude import SaudeAgent
 from agents.sentinela import SentinelaAgent
@@ -32,6 +33,7 @@ AGENT_LABELS = {
     "leitor": "Leitor",
     "analista": "Analista",
     "ops": "Ops",
+    "radar": "Radar GitHub",
 }
 
 
@@ -50,6 +52,7 @@ class AgentHub:
             "leitor": LeitorPDFAgent(db=self.db),
             "analista": AnalistaAgent(db=self.db),
             "ops": OpsAgent(db=self.db),
+            "radar": RadarAgent(db=self.db),
         }
         self._locked_agent: dict[str, str | None] = {}
 

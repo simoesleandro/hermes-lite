@@ -11,6 +11,7 @@ const AGENT_META = {
   leitor:          { icon: "file-text",   label: "Leitor" },
   analista:        { icon: "bar-chart-2", label: "Analista" },
   ops:             { icon: "settings-2",  label: "Ops" },
+  radar:           { icon: "radio",       label: "Radar GitHub" },
 };
 
 const THINKING_PHRASES = {
@@ -25,6 +26,7 @@ const THINKING_PHRASES = {
   leitor:          ["Processando documento...",  "Extraindo conteúdo...",       "Analisando estrutura..."],
   analista:        ["Gerando SQL...",            "Executando query...",         "Preparando visualização..."],
   ops:             ["Verificando serviços...",   "Consultando status...",       "Checando processos..."],
+  radar:           ["Buscando repos GitHub...",  "Filtrando curadoria...",     "Gerando digest..."],
 };
 
 // ── Global state ──────────────────────────────────────
@@ -130,6 +132,7 @@ function updateBadge(agentKey) {
   toggleKnowledgePanel(agentKey);
   toggleFactsPanel();
   toggleMetricsPanel(agentKey);
+  toggleRadarPanel(agentKey);
   updateSkillBadge(agentKey);
 }
 
@@ -242,6 +245,55 @@ function toggleFactsPanel() {
   if (!panel) return;
   panel.hidden = false;
   loadFactsPanel();
+}
+
+function toggleRadarPanel(agentKey) {
+  const panel = document.getElementById("radar-panel");
+  if (!panel) return;
+  if (agentKey === "radar") {
+    panel.hidden = false;
+    loadRadarPanel();
+  } else {
+    panel.hidden = true;
+  }
+}
+
+async function loadRadarPanel() {
+  const panel = document.getElementById("radar-panel");
+  if (!panel || panel.hidden) return;
+  panel.innerHTML = '<div class="radar-loading">Carregando…</div>';
+  try {
+    const res = await fetch("/api/radar/latest");
+    const data = await res.json();
+    const digest = data.digest;
+    if (!digest || !(digest.picks || []).length) {
+      panel.innerHTML = `
+        <div class="radar-panel-title">Radar GitHub</div>
+        <p class="radar-empty">Nenhum digest ainda. Diga «gerar radar» ou aguarde Cronos (07:15).</p>
+        <button type="button" class="radar-run-btn" id="radar-run-btn">Gerar agora</button>`;
+    } else {
+      const picks = digest.picks.slice(0, 4);
+      panel.innerHTML = `
+        <div class="radar-panel-title">Radar — ${escapeHtml(digest.date)}</div>
+        <ul class="radar-list">
+          ${picks.map((p) => `
+            <li><strong>${escapeHtml(p.full_name)}</strong> <span class="radar-score">${p.nota}/10</span></li>
+          `).join("")}
+        </ul>
+        <a class="radar-dl" href="/api/radar/export/${digest.date}">Baixar MD</a>
+        <button type="button" class="radar-run-btn" id="radar-run-btn">Atualizar</button>`;
+    }
+    const btn = panel.querySelector("#radar-run-btn");
+    if (btn) btn.addEventListener("click", () => {
+      appendSystemMessage("Gerando Radar GitHub…");
+      fetch("/api/radar/run", { method: "POST" })
+        .then((r) => r.json())
+        .then(() => { loadRadarPanel(); loadFactsPanel(); })
+        .catch(() => appendSystemMessage("Erro ao gerar radar"));
+    });
+  } catch {
+    panel.innerHTML = '<div class="radar-offline">Radar indisponível</div>';
+  }
 }
 
 function toggleMetricsPanel(agentKey) {

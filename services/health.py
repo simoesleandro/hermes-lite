@@ -133,7 +133,7 @@ def get_health(include_providers: bool = True) -> dict:
 
     return {
         "ok": ok,
-        "hermes": {"database": hermes_db, "agents": 11},
+        "hermes": {"database": hermes_db, "agents": 12},
         "telegram": telegram,
         "providers": providers,
         "services": services,

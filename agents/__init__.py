@@ -9,6 +9,7 @@ from .investigador import InvestigadorAgent
 from .leitor_pdf import LeitorPDFAgent
 from .analista import AnalistaAgent
 from .ops import OpsAgent
+from .radar import RadarAgent
 
 __all__ = [
     "SaudeAgent",
@@ -22,4 +23,5 @@ __all__ = [
     "LeitorPDFAgent",
     "AnalistaAgent",
     "OpsAgent",
+    "RadarAgent",
 ]

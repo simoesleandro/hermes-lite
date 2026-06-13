@@ -81,6 +81,23 @@ class Database:
                 )
             """)
             conn.execute("""
+                CREATE TABLE IF NOT EXISTS github_radar_digests (
+                    id         TEXT PRIMARY KEY,
+                    date       TEXT NOT NULL UNIQUE,
+                    markdown   TEXT NOT NULL,
+                    picks_json TEXT,
+                    file_path  TEXT,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS github_radar_seen (
+                    full_name  TEXT PRIMARY KEY,
+                    score      REAL,
+                    first_seen TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge_docs (
                     id         TEXT PRIMARY KEY,
                     title      TEXT NOT NULL,
@@ -664,6 +681,107 @@ class Database:
                     pass
             out.append(d)
         return out
+
+    # ── GitHub Radar ──────────────────────────────────────────────────────────
+
+    def save_github_digest(
+        self,
+        digest_id: str,
+        date: str,
+        markdown: str,
+        picks: list[dict],
+        file_path: str,
+    ) -> None:
+        import json as _json
+        now = datetime.utcnow().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO github_radar_digests (id, date, markdown, picks_json, file_path, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(date) DO UPDATE SET
+                    id = excluded.id,
+                    markdown = excluded.markdown,
+                    picks_json = excluded.picks_json,
+                    file_path = excluded.file_path,
+                    created_at = excluded.created_at
+                """,
+                (digest_id, date, markdown, _json.dumps(picks, ensure_ascii=False), file_path, now),
+            )
+            conn.commit()
+
+    def get_github_digest_by_date(self, date: str) -> dict | None:
+        return self._parse_github_digest_row(
+            self._fetch_github_digest("date = ?", (date,))
+        )
+
+    def get_latest_github_digest(self) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id, date, markdown, picks_json, file_path, created_at "
+                "FROM github_radar_digests ORDER BY date DESC LIMIT 1",
+            ).fetchone()
+        return self._parse_github_digest_row(row)
+
+    def list_github_digests(self, limit: int = 14) -> list[dict]:
+        import json as _json
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, date, picks_json, file_path, created_at "
+                "FROM github_radar_digests ORDER BY date DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        out = []
+        for row in rows:
+            d = dict(row)
+            if d.get("picks_json"):
+                try:
+                    d["picks"] = _json.loads(d["picks_json"])
+                except Exception:
+                    d["picks"] = []
+            out.append(d)
+        return out
+
+    def _fetch_github_digest(self, where_sql: str, params: tuple):
+        with self._connect() as conn:
+            return conn.execute(
+                f"SELECT id, date, markdown, picks_json, file_path, created_at "
+                f"FROM github_radar_digests WHERE {where_sql}",
+                params,
+            ).fetchone()
+
+    def _parse_github_digest_row(self, row) -> dict | None:
+        if not row:
+            return None
+        import json as _json
+        d = dict(row)
+        if d.get("picks_json"):
+            try:
+                d["picks"] = _json.loads(d["picks_json"])
+            except Exception:
+                d["picks"] = []
+        return d
+
+    def mark_github_seen(self, full_name: str, score: float | None = None) -> None:
+        now = datetime.utcnow().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO github_radar_seen (full_name, score, first_seen)
+                VALUES (?, ?, ?)
+                ON CONFLICT(full_name) DO UPDATE SET score = COALESCE(excluded.score, github_radar_seen.score)
+                """,
+                (full_name, score, now),
+            )
+            conn.commit()
+
+    def list_github_seen(self, limit: int = 500) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT full_name, score, first_seen FROM github_radar_seen ORDER BY first_seen DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     # ── Knowledge base (RAG-lite FTS) ─────────────────────────────────────────
 

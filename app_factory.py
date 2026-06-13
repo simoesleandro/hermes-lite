@@ -19,6 +19,7 @@ from agents.investigador import InvestigadorAgent
 from agents.juridico import JuridicoAgent
 from agents.leitor_pdf import LeitorPDFAgent
 from agents.ops import OpsAgent
+from agents.radar import RadarAgent
 from agents.produtividade import ProdutividadeAgent
 from agents.saude import SaudeAgent
 from agents.sentinela import SentinelaAgent
@@ -54,12 +55,17 @@ _RULES = [
     (re.compile(r"pesquis|investig|buscar na web|notícia", re.I), "investigador"),
     (re.compile(r"pdf|documento|resumir arquivo|anexo", re.I), "leitor"),
     (re.compile(r"tarefa|agenda|lembrete|produtividade|organizar", re.I), "produtividade"),
+    (re.compile(
+        r"github|reposit[oó]rio|open\s*source|radar\s*github|trending|stars?|"
+        r"curadoria|repo do dia|biblioteca nova",
+        re.I,
+    ), "radar"),
 ]
 
 
 _VALID_AGENTS = frozenset({
     "conhecimento", "saude", "treino", "desenvolvimento", "analista",
-    "juridico", "sentinela", "investigador", "leitor", "produtividade", "ops",
+    "juridico", "sentinela", "investigador", "leitor", "produtividade", "ops", "radar",
 })
 
 _CLASSIFY_SYSTEM = """Você roteia mensagens para um agente do Hermes Lite.
@@ -76,7 +82,8 @@ Agentes:
 - investigador: pesquisa web, notícias, dossiês
 - leitor: PDFs e documentos
 - produtividade: tarefas, agenda, organização
-- ops: serviços Windows, Cronos, Vigia, status do sistema"""
+- ops: serviços Windows, Cronos, Vigia, status do sistema
+- radar: curadoria GitHub, repos open source, digest diário"""
 
 
 def classify_agent_regex_matches(message: str) -> list[str]:
@@ -193,6 +200,7 @@ def create_app(*, enable_cors: bool = False) -> Flask:
         "leitor": LeitorPDFAgent(db=db),
         "analista": AnalistaAgent(db=db),
         "ops": OpsAgent(db=db),
+        "radar": RadarAgent(db=db),
     }
 
     if enable_cors:
@@ -430,6 +438,43 @@ def create_app(*, enable_cors: bool = False) -> Flask:
         resolved = Path(path).resolve()
         if not resolved.is_file() or EXPORTS_DIR.resolve() not in resolved.parents:
             return jsonify({"error": "arquivo não encontrado"}), 404
+        return send_from_directory(resolved.parent, resolved.name, as_attachment=True)
+
+    @app.route("/api/radar/latest")
+    def radar_latest_route():
+        digest = db.get_latest_github_digest()
+        if not digest:
+            return jsonify({"digest": None})
+        return jsonify({"digest": digest})
+
+    @app.route("/api/radar/run", methods=["POST"])
+    def radar_run_route():
+        from services.github_radar import run_github_radar
+        result = run_github_radar(db, notify=False)
+        return jsonify(result)
+
+    @app.route("/api/radar/digest/<date>")
+    def radar_digest_route(date: str):
+        digest = db.get_github_digest_by_date(date)
+        if not digest:
+            return jsonify({"error": "digest não encontrado"}), 404
+        return jsonify({"digest": digest})
+
+    @app.route("/api/radar/export/<date>")
+    def radar_export_route(date: str):
+        from pathlib import Path
+        from services.github_radar import EXPORTS_DIR
+        digest = db.get_github_digest_by_date(date)
+        path = (digest or {}).get("file_path")
+        if not path:
+            fallback = EXPORTS_DIR / f"{date}.md"
+            if fallback.is_file():
+                path = str(fallback)
+            else:
+                return jsonify({"error": "arquivo não encontrado"}), 404
+        resolved = Path(path).resolve()
+        if not resolved.is_file() or EXPORTS_DIR.resolve() not in resolved.parents:
+            return jsonify({"error": "forbidden"}), 403
         return send_from_directory(resolved.parent, resolved.name, as_attachment=True)
 
     @app.route("/api/handoff/juridico", methods=["POST"])

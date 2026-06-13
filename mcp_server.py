@@ -29,7 +29,7 @@ mcp = FastMCP(
 
 AGENTS = [
     "conhecimento", "desenvolvimento", "saude", "treino", "produtividade",
-    "sentinela", "juridico", "investigador", "leitor", "analista", "ops",
+    "sentinela", "juridico", "investigador", "leitor", "analista", "ops", "radar",
 ]
 
 _sentinela = SentinelaClient()
@@ -52,7 +52,7 @@ def _json(data) -> str:
 
 @mcp.tool()
 def list_agents() -> str:
-    """Lista os 11 agentes especializados do Hermes Lite."""
+    """Lista os 12 agentes especializados do Hermes Lite."""
     return _json({"agents": AGENTS})
 
 
@@ -313,6 +313,23 @@ def workflow_investigacao_parecer(
         _db, context=ctx, alert=alert, dossier=d, sources=sources,
     )
     return _json({"id": wf_id, "status": "pending", "poll": f"workflow status id={wf_id}"})
+
+
+@mcp.tool()
+def radar_run() -> str:
+    """Executa curadoria GitHub agora (Investigador autônomo de repos)."""
+    from services.github_radar import run_github_radar
+    result = run_github_radar(_db, notify=False)
+    return _json(result)
+
+
+@mcp.tool()
+def radar_latest() -> str:
+    """Retorna o digest Radar GitHub mais recente."""
+    digest = _db.get_latest_github_digest()
+    if not digest:
+        return _json({"digest": None})
+    return _json({"digest": digest})
 
 
 if __name__ == "__main__":
