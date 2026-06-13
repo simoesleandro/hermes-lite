@@ -385,6 +385,53 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             return jsonify({"error": "fato não encontrado"}), 404
         return jsonify({"ok": True})
 
+    @app.route("/api/workflows", methods=["POST"])
+    def create_workflow_route():
+        from services.workflow import start_investigacao_parecer
+
+        data = request.get_json(force=True)
+        wf_type = (data.get("type") or "investigacao_parecer").strip()
+        if wf_type != "investigacao_parecer":
+            return jsonify({"error": "tipo de workflow inválido"}), 400
+        context = (data.get("context") or data.get("text") or "").strip()
+        alert = data.get("alert") if isinstance(data.get("alert"), dict) else None
+        dossier = (data.get("dossier") or "").strip() or None
+        sources = data.get("sources") if isinstance(data.get("sources"), list) else []
+        if not dossier and not context and not alert:
+            return jsonify({"error": "informe context, alert ou dossier"}), 400
+        wf_id = start_investigacao_parecer(
+            db, context=context, alert=alert, dossier=dossier, sources=sources,
+        )
+        return jsonify({"id": wf_id, "status": "pending", "type": wf_type})
+
+    @app.route("/api/workflows")
+    def list_workflows_route():
+        return jsonify({"workflows": db.list_workflows(limit=30)})
+
+    @app.route("/api/workflows/<wf_id>")
+    def get_workflow_route(wf_id: str):
+        wf = db.get_workflow(wf_id)
+        if not wf:
+            return jsonify({"error": "workflow não encontrado"}), 404
+        return jsonify(wf)
+
+    @app.route("/api/workflows/<wf_id>/export")
+    def export_workflow_route(wf_id: str):
+        from pathlib import Path
+        from services.workflow import EXPORTS_DIR
+
+        wf = db.get_workflow(wf_id)
+        if not wf or wf.get("status") != "done":
+            return jsonify({"error": "export indisponível"}), 404
+        out = wf.get("output_json") or {}
+        path = out.get("export_path")
+        if not path:
+            return jsonify({"error": "caminho ausente"}), 404
+        resolved = Path(path).resolve()
+        if not resolved.is_file() or EXPORTS_DIR.resolve() not in resolved.parents:
+            return jsonify({"error": "arquivo não encontrado"}), 404
+        return send_from_directory(resolved.parent, resolved.name, as_attachment=True)
+
     @app.route("/api/handoff/juridico", methods=["POST"])
     def handoff_juridico_route():
         from services.handoff import build_juridico_handoff_message
@@ -638,6 +685,9 @@ def create_app(*, enable_cors: bool = False) -> Flask:
                 yield _sse({"token": fact_reply})
                 yield _sse({"done": True, "full_response": fact_reply, "provider": "local"})
                 return
+
+            from services.fact_extractor import schedule_fact_extraction
+            schedule_fact_extraction(message, db)
 
             if agent_name == "leitor" and session_id in _PDF_SESSIONS:
                 agent.set_pdf_context(**_PDF_SESSIONS[session_id])

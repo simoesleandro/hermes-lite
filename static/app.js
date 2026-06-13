@@ -450,6 +450,7 @@ function renderSentinelaPanel(panel, data) {
             <span>${escapeHtml(a.tipo || "")}</span>
           </div>
           <button type="button" class="sentinela-inv-btn" data-idx="${i}">Investigar</button>
+          <button type="button" class="sentinela-pipe-btn" data-idx="${i}">Pipeline</button>
         </li>
       `).join("") || "<li>Nenhum alerta crítico</li>"}
     </ul>
@@ -461,6 +462,15 @@ function renderSentinelaPanel(panel, data) {
       const idx = parseInt(btn.dataset.idx, 10);
       if (panel._alertas && panel._alertas[idx]) {
         handoffToInvestigador(panel._alertas[idx], "");
+      }
+    });
+  });
+  panel.querySelectorAll(".sentinela-pipe-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx, 10);
+      if (panel._alertas && panel._alertas[idx]) {
+        startWorkflowInvestigacaoParecer({ alert: panel._alertas[idx] });
       }
     });
   });
@@ -653,6 +663,60 @@ function appendSystemMessage(text) {
   el.textContent = `— ${text} —`;
   chatInner.appendChild(el);
   scrollToBottom();
+}
+
+function appendSystemLink(label, href) {
+  removeWelcome();
+  const el = document.createElement("div");
+  el.classList.add("system-msg");
+  el.append("— ");
+  const a = document.createElement("a");
+  a.href = href;
+  a.textContent = label;
+  a.target = "_blank";
+  a.rel = "noopener";
+  el.append(a, " —");
+  chatInner.appendChild(el);
+  scrollToBottom();
+}
+
+async function startWorkflowInvestigacaoParecer(payload) {
+  if (state.isStreaming) return;
+  try {
+    const res = await fetch("/api/workflows", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "investigacao_parecer", ...payload }),
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    appendSystemMessage("Pipeline em background: Investigador → Jurídico → Export MD…");
+    pollWorkflowStatus(data.id);
+  } catch {
+    appendSystemMessage("Erro ao iniciar pipeline");
+  }
+}
+
+async function pollWorkflowStatus(workflowId) {
+  const maxAttempts = 80;
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    try {
+      const res = await fetch(`/api/workflows/${workflowId}`);
+      if (!res.ok) continue;
+      const wf = await res.json();
+      if (wf.status === "done") {
+        const fn = wf.output_json?.export_filename || "parecer.md";
+        appendSystemLink(`Baixar ${fn}`, `/api/workflows/${workflowId}/export`);
+        return;
+      }
+      if (wf.status === "failed") {
+        appendSystemMessage(`Pipeline falhou: ${wf.error || "erro desconhecido"}`);
+        return;
+      }
+    } catch { /* retry */ }
+  }
+  appendSystemMessage("Pipeline ainda em execução — consulte GET /api/workflows depois");
 }
 
 // ── File chip ─────────────────────────────────────────
@@ -857,6 +921,16 @@ async function dispatchMessage(message) {
       handoffBtn.title = "Enviar dossiê ao agente Jurídico";
       handoffBtn.addEventListener("click", () => handoffToJuridico(rawText, streamSources));
       bubbleMeta.appendChild(handoffBtn);
+
+      const pipeBtn = document.createElement("button");
+      pipeBtn.type = "button";
+      pipeBtn.className = "handoff-btn handoff-btn-pipeline";
+      pipeBtn.textContent = "Pipeline + Export";
+      pipeBtn.title = "Investigar → Parecer → Markdown (background)";
+      pipeBtn.addEventListener("click", () =>
+        startWorkflowInvestigacaoParecer({ dossier: rawText, sources: streamSources || [] }),
+      );
+      bubbleMeta.appendChild(pipeBtn);
     }
 
     if ((agentSnap === "sentinela" || agentSnap === "juridico") && rawText.trim()) {

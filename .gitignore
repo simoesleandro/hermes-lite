@@ -7,5 +7,7 @@ db/hermes.db
 .DS_Store
 
 logs/
+exports/
+
 vigia-service.err.log
 vigia-service.wrapper.log

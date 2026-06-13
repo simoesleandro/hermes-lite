@@ -68,6 +68,19 @@ class Database:
                 )
             """)
             conn.execute("""
+                CREATE TABLE IF NOT EXISTS workflows (
+                    id         TEXT PRIMARY KEY,
+                    type       TEXT NOT NULL,
+                    status     TEXT NOT NULL DEFAULT 'pending'
+                               CHECK(status IN ('pending', 'running', 'done', 'failed')),
+                    input_json TEXT,
+                    output_json TEXT,
+                    error      TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS knowledge_docs (
                     id         TEXT PRIMARY KEY,
                     title      TEXT NOT NULL,
@@ -577,6 +590,80 @@ class Database:
             prefix = f"[{cat}] " if cat else ""
             lines.append(f"• {prefix}{f['key']}: {f['value']}")
         return "\n".join(lines)
+
+    # ── Workflows duráveis ────────────────────────────────────────────────────
+
+    def create_workflow(self, wf_id: str, wf_type: str, input_data: dict) -> None:
+        import json as _json
+        now = datetime.utcnow().isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO workflows (id, type, status, input_json, created_at, updated_at)
+                VALUES (?, ?, 'pending', ?, ?, ?)
+                """,
+                (wf_id, wf_type, _json.dumps(input_data, ensure_ascii=False), now, now),
+            )
+            conn.commit()
+
+    def get_workflow(self, wf_id: str) -> dict | None:
+        import json as _json
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM workflows WHERE id = ?", (wf_id,)).fetchone()
+        if not row:
+            return None
+        d = dict(row)
+        for field in ("input_json", "output_json"):
+            if d.get(field):
+                try:
+                    d[field] = _json.loads(d[field])
+                except Exception:
+                    pass
+        return d
+
+    def update_workflow(
+        self,
+        wf_id: str,
+        status: str | None = None,
+        output_json: dict | None = None,
+        error: str | None = None,
+    ) -> None:
+        import json as _json
+        now = datetime.utcnow().isoformat()
+        sets = ["updated_at = ?"]
+        vals: list = [now]
+        if status:
+            sets.append("status = ?")
+            vals.append(status)
+        if output_json is not None:
+            sets.append("output_json = ?")
+            vals.append(_json.dumps(output_json, ensure_ascii=False))
+        if error is not None:
+            sets.append("error = ?")
+            vals.append(error)
+        vals.append(wf_id)
+        with self._connect() as conn:
+            conn.execute(f"UPDATE workflows SET {', '.join(sets)} WHERE id = ?", vals)
+            conn.commit()
+
+    def list_workflows(self, limit: int = 20) -> list[dict]:
+        import json as _json
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, type, status, output_json, error, created_at, updated_at "
+                "FROM workflows ORDER BY created_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        out = []
+        for row in rows:
+            d = dict(row)
+            if d.get("output_json"):
+                try:
+                    d["output_json"] = _json.loads(d["output_json"])
+                except Exception:
+                    pass
+            out.append(d)
+        return out
 
     # ── Knowledge base (RAG-lite FTS) ─────────────────────────────────────────
 

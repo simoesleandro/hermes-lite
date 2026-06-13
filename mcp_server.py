@@ -285,5 +285,35 @@ def facts_delete(key: str) -> str:
     return _json({"ok": True})
 
 
+@mcp.tool()
+def workflow_investigacao_parecer(
+    context: str = "",
+    alert_json: str = "",
+    dossier: str = "",
+    sources_json: str = "[]",
+) -> str:
+    """Inicia pipeline durável Investigador → Jurídico → export MD (background)."""
+    from services.workflow import start_investigacao_parecer
+
+    alert = None
+    if alert_json.strip():
+        try:
+            alert = json.loads(alert_json)
+        except json.JSONDecodeError:
+            pass
+    try:
+        sources = json.loads(sources_json) if sources_json.strip() else []
+    except json.JSONDecodeError:
+        sources = []
+    d = dossier.strip() or None
+    ctx = context.strip()
+    if not d and not ctx and not alert:
+        return _json({"error": "informe context, alert_json ou dossier"})
+    wf_id = start_investigacao_parecer(
+        _db, context=ctx, alert=alert, dossier=d, sources=sources,
+    )
+    return _json({"id": wf_id, "status": "pending", "poll": f"workflow status id={wf_id}"})
+
+
 if __name__ == "__main__":
     mcp.run()
