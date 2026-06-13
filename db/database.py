@@ -72,9 +72,14 @@ class Database:
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
                     doc_id      TEXT NOT NULL REFERENCES knowledge_docs(id) ON DELETE CASCADE,
                     chunk_index INTEGER NOT NULL,
-                    content     TEXT NOT NULL
+                    content     TEXT NOT NULL,
+                    embedding   TEXT
                 )
             """)
+            try:
+                conn.execute("ALTER TABLE knowledge_chunks ADD COLUMN embedding TEXT")
+            except Exception:
+                pass
             conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
                     content,
@@ -508,6 +513,7 @@ class Database:
         source: str | None = None,
     ) -> int:
         from services.knowledge import chunk_text
+        from services.embeddings import embed_text, embedding_to_json, embeddings_enabled
 
         now = datetime.utcnow().isoformat()
         chunks = chunk_text(text)
@@ -517,10 +523,17 @@ class Database:
                 (doc_id, title[:120], filename, source, now),
             )
             for i, chunk in enumerate(chunks):
-                conn.execute(
+                cur = conn.execute(
                     "INSERT INTO knowledge_chunks (doc_id, chunk_index, content) VALUES (?, ?, ?)",
                     (doc_id, i, chunk),
                 )
+                if embeddings_enabled():
+                    emb = embed_text(chunk)
+                    if emb:
+                        conn.execute(
+                            "UPDATE knowledge_chunks SET embedding = ? WHERE id = ?",
+                            (embedding_to_json(emb), cur.lastrowid),
+                        )
             conn.commit()
         return len(chunks)
 
@@ -568,8 +581,71 @@ class Database:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def search_knowledge_semantic(self, query: str, limit: int = 5) -> list[dict]:
+        from services.embeddings import (
+            cosine_similarity,
+            embed_query,
+            embedding_from_json,
+            embeddings_enabled,
+        )
+
+        if not embeddings_enabled():
+            return []
+        q_emb = embed_query(query)
+        if not q_emb:
+            return []
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT c.doc_id, c.chunk_index, c.content, c.embedding,
+                       d.title, d.filename
+                FROM knowledge_chunks c
+                JOIN knowledge_docs d ON d.id = c.doc_id
+                WHERE c.embedding IS NOT NULL
+                """
+            ).fetchall()
+        scored: list[tuple[float, dict]] = []
+        for row in rows:
+            emb = embedding_from_json(row["embedding"])
+            if not emb:
+                continue
+            sim = cosine_similarity(q_emb, emb)
+            content = row["content"] or ""
+            snip = content if len(content) <= 200 else content[:200] + "…"
+            scored.append((
+                sim,
+                {
+                    "doc_id": row["doc_id"],
+                    "title": row["title"],
+                    "filename": row["filename"],
+                    "snippet": snip,
+                    "chunk_index": row["chunk_index"],
+                },
+            ))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [item for _, item in scored[:limit]]
+
+    def search_knowledge_hybrid(self, query: str, limit: int = 5) -> list[dict]:
+        from services.embeddings import embeddings_enabled
+
+        fts_hits = self.search_knowledge(query, limit=limit)
+        if not embeddings_enabled():
+            return fts_hits
+        sem_hits = self.search_knowledge_semantic(query, limit=limit)
+        seen: set[tuple[str, int | None]] = set()
+        merged: list[dict] = []
+        for hit in sem_hits + fts_hits:
+            key = (hit["doc_id"], hit.get("chunk_index"))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(hit)
+            if len(merged) >= limit:
+                break
+        return merged
+
     def format_knowledge_context(self, query: str, limit: int = 4) -> str:
-        hits = self.search_knowledge(query, limit=limit)
+        hits = self.search_knowledge_hybrid(query, limit=limit)
         if not hits:
             return ""
         lines = ["=== TRECHOS DA BASE DE CONHECIMENTO (use se relevante) ==="]
