@@ -34,6 +34,143 @@ def _get(url: str, timeout: int = 25) -> dict | list:
         return json.loads(resp.read().decode())
 
 
+def github_token_configured() -> bool:
+    return bool(os.getenv("GITHUB_TOKEN", "").strip())
+
+
+def get_authenticated_user() -> dict | None:
+    if not github_token_configured():
+        return None
+    try:
+        data = _get(f"{API_BASE}/user")
+        return data if isinstance(data, dict) else None
+    except Exception as exc:
+        logger.warning("GitHub /user falhou: %s", exc)
+        return None
+
+
+def github_username() -> str:
+    explicit = os.getenv("GITHUB_USER", "").strip()
+    if explicit:
+        return explicit
+    user = get_authenticated_user()
+    return (user or {}).get("login", "")
+
+
+def _normalize_issue(item: dict) -> dict:
+    repo = ""
+    if isinstance(item.get("repository"), dict):
+        repo = item["repository"].get("full_name", "")
+    elif item.get("repository_url"):
+        repo = str(item["repository_url"]).split("/repos/")[-1]
+    return {
+        "number": item.get("number"),
+        "title": (item.get("title") or "")[:120],
+        "html_url": item.get("html_url", ""),
+        "repo": repo,
+        "state": item.get("state"),
+        "updated_at": item.get("updated_at", ""),
+        "is_pr": bool(item.get("pull_request")),
+    }
+
+
+def search_issues(q: str, per_page: int = 10) -> list[dict]:
+    if not github_token_configured():
+        return []
+    qs = urllib.parse.urlencode({
+        "q": q,
+        "sort": "updated",
+        "order": "desc",
+        "per_page": min(per_page, 30),
+    })
+    try:
+        data = _get(f"{API_BASE}/search/issues?{qs}")
+        items = data.get("items", []) if isinstance(data, dict) else []
+        return [_normalize_issue(i) for i in items]
+    except Exception as exc:
+        logger.warning("GitHub search issues falhou (%s): %s", q, exc)
+        return []
+
+
+def list_open_prs_by_author(username: str, limit: int = 5) -> list[dict]:
+    if not username:
+        return []
+    return search_issues(f"is:pr is:open author:{username}", per_page=limit)
+
+
+def list_prs_needing_review(username: str, limit: int = 5) -> list[dict]:
+    if not username:
+        return []
+    return search_issues(f"is:pr is:open review-requested:{username}", per_page=limit)
+
+
+def list_assigned_issues(limit: int = 8) -> list[dict]:
+    if not github_token_configured():
+        return []
+    try:
+        data = _get(
+            f"{API_BASE}/issues?filter=assigned&state=open&per_page={min(limit, 30)}"
+        )
+        if not isinstance(data, list):
+            return []
+        return [_normalize_issue(i) for i in data if not i.get("pull_request")][:limit]
+    except Exception as exc:
+        logger.warning("GitHub assigned issues falhou: %s", exc)
+        return []
+
+
+def list_user_repos(username: str, limit: int = 10) -> list[str]:
+    if not username:
+        return []
+    raw = os.getenv("GITHUB_INBOX_REPOS", "").strip()
+    if raw:
+        return [r.strip() for r in raw.split(",") if r.strip()][:limit]
+    try:
+        data = _get(
+            f"{API_BASE}/users/{username}/repos?"
+            f"sort=updated&per_page={min(limit, 30)}&type=owner"
+        )
+        if not isinstance(data, list):
+            return []
+        return [r["full_name"] for r in data if r.get("full_name")][:limit]
+    except Exception as exc:
+        logger.warning("GitHub list repos falhou: %s", exc)
+        return []
+
+
+def latest_failed_run(full_name: str) -> dict | None:
+    if not github_token_configured():
+        return None
+    try:
+        data = _get(
+            f"{API_BASE}/repos/{full_name}/actions/runs?status=failure&per_page=1"
+        )
+        runs = data.get("workflow_runs", []) if isinstance(data, dict) else []
+        if not runs:
+            return None
+        run = runs[0]
+        return {
+            "repo": full_name,
+            "name": run.get("name", ""),
+            "html_url": run.get("html_url", ""),
+            "created_at": run.get("created_at", ""),
+            "branch": run.get("head_branch", ""),
+        }
+    except Exception:
+        return None
+
+
+def list_recent_ci_failures(username: str, max_repos: int = 8, limit: int = 3) -> list[dict]:
+    failures: list[dict] = []
+    for repo in list_user_repos(username, limit=max_repos):
+        failed = latest_failed_run(repo)
+        if failed:
+            failures.append(failed)
+        if len(failures) >= limit:
+            break
+    return failures
+
+
 def search_repositories(query: str, per_page: int = 15) -> list[dict]:
     qs = urllib.parse.urlencode({
         "q": query,

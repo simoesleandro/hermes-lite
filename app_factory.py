@@ -440,6 +440,11 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             return jsonify({"error": "arquivo não encontrado"}), 404
         return send_from_directory(resolved.parent, resolved.name, as_attachment=True)
 
+    @app.route("/api/github/inbox")
+    def github_inbox_route():
+        from services.github_inbox import fetch_github_inbox
+        return jsonify(fetch_github_inbox())
+
     @app.route("/api/radar/latest")
     def radar_latest_route():
         digest = db.get_latest_github_digest()

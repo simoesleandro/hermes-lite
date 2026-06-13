@@ -98,6 +98,17 @@ def _radar_block(db: Database, date_str: str) -> list[str]:
     return lines
 
 
+def _github_inbox_block() -> list[str]:
+    if os.getenv("GITHUB_INBOX_ENABLED", "1") != "1":
+        return []
+    try:
+        from services.github_inbox import build_inbox_lines
+
+        return ["", *build_inbox_lines()]
+    except Exception:
+        return ["", "🐙 GitHub", "Inbox indisponível"]
+
+
 def build_morning_message(db: Database | None = None) -> str:
     db = db or Database()
     agora = datetime.now(_TZ)
@@ -115,6 +126,7 @@ def build_morning_message(db: Database | None = None) -> str:
     ]
     sent_lines, _, _ = _sentinela_block()
     parts.extend(sent_lines)
+    parts.extend(_github_inbox_block())
     parts.extend(["", *_radar_block(db, date_str), "", "Hermes · digest matinal"])
     return "\n".join(parts)
 

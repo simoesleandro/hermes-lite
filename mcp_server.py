@@ -316,6 +316,13 @@ def workflow_investigacao_parecer(
 
 
 @mcp.tool()
+def github_inbox() -> str:
+    """Inbox GitHub: PRs abertos, reviews pendentes, issues atribuídas e CI falhou."""
+    from services.github_inbox import fetch_github_inbox
+    return _json(fetch_github_inbox())
+
+
+@mcp.tool()
 def radar_run() -> str:
     """Executa curadoria GitHub agora (Investigador autônomo de repos)."""
     from services.github_radar import run_github_radar
