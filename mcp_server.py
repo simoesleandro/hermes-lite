@@ -153,5 +153,17 @@ def gtd_add_task(title: str, status: str = "inbox") -> str:
     return _json({"ok": True, "id": tid, "title": title.strip(), "status": st})
 
 
+@mcp.tool()
+def handoff_investigador_juridico(dossier: str, sources_json: str = "[]") -> str:
+    """Monta mensagem de handoff Investigador → Jurídico (parecer legal). sources_json: JSON array."""
+    from services.handoff import build_juridico_handoff_message
+    try:
+        sources = json.loads(sources_json) if sources_json.strip() else []
+    except json.JSONDecodeError:
+        sources = []
+    message = build_juridico_handoff_message(dossier, sources)
+    return _json({"agent": "juridico", "skill": "parecer", "message": message})
+
+
 if __name__ == "__main__":
     mcp.run()

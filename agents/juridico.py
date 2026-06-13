@@ -2,6 +2,7 @@ from typing import Generator
 from .base import BaseAgent
 from model_router import Complexity, get_completion, stream_completion
 from services.sentinela_client import SentinelaClient
+from services.handoff import is_juridico_handoff
 from db.database import Database
 
 
@@ -73,6 +74,12 @@ class JuridicoAgent(BaseAgent):
             + f"\n\n=== DADOS REAIS DO SENTINELA RJ ===\n{context}"
             + self._memory_block(conversation_id)
         )
+        if is_juridico_handoff(message):
+            system += (
+                "\n\nModo parecer pós-investigação: parta dos fatos do dossiê, "
+                "cruze com alertas Sentinela quando pertinente, cite dispositivos legais, "
+                "classifique risco (baixo/médio/alto) e conclua com recomendação objetiva."
+            )
         history = self._get_history(session_id, conversation_id)
         return (
             [{"role": "system", "content": system}]

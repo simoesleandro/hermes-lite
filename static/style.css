@@ -497,6 +497,22 @@ body::before {
 .sources-list a:hover { text-decoration: underline; }
 .src-n { color: var(--text-sub); margin-right: 4px; }
 
+.handoff-btn {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.12);
+  color: #fcd34d;
+  font-size: 0.65rem;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+.handoff-btn:hover {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fef3c7;
+}
+
 .agent-dropdown {
   position: absolute;
   bottom: calc(100% + 8px);

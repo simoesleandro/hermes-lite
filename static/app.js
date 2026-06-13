@@ -333,6 +333,30 @@ function escapeHtml(text) {
   return d.innerHTML;
 }
 
+async function handoffToJuridico(dossier, sources) {
+  if (state.isStreaming) return;
+  try {
+    const res = await fetch("/api/handoff/juridico", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dossier, sources: sources || [] }),
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    state.currentAgent = "juridico";
+    state.agentLocked = true;
+    state.activeSkill = data.skill || "parecer";
+    updateBadge("juridico");
+    agentBadge.classList.add("locked");
+    updateSkillBadge("juridico");
+    toggleSentinelaPanel("juridico");
+    appendSystemMessage("Dossiê encaminhado ao Jurídico — gerando parecer…");
+    dispatchMessage(data.message);
+  } catch {
+    appendSystemMessage("Erro ao encaminhar dossiê ao Jurídico");
+  }
+}
+
 // ── Agent dropdown ────────────────────────────────────
 Object.entries(AGENT_META).forEach(([key, meta]) => {
   const btn = document.createElement("button");
@@ -612,6 +636,7 @@ async function dispatchMessage(message) {
   let streamDone    = false;
   let providerRef   = null;
   let es            = null;
+  let streamSources = [];
 
   function _renderB64Images(container) {
     container.querySelectorAll("p, pre, code").forEach((el) => {
@@ -647,6 +672,16 @@ async function dispatchMessage(message) {
       badge.classList.add("provider-badge", `provider-${provider}`);
       badge.textContent = provider;
       bubbleMeta.appendChild(badge);
+    }
+
+    if (agentSnap === "investigador" && rawText.trim()) {
+      const handoffBtn = document.createElement("button");
+      handoffBtn.type = "button";
+      handoffBtn.className = "handoff-btn";
+      handoffBtn.textContent = "Gerar parecer jurídico";
+      handoffBtn.title = "Enviar dossiê ao agente Jurídico";
+      handoffBtn.addEventListener("click", () => handoffToJuridico(rawText, streamSources));
+      bubbleMeta.appendChild(handoffBtn);
     }
 
     if (progressSteps) {
@@ -748,6 +783,7 @@ async function dispatchMessage(message) {
     }
 
     if (data.sources && data.sources.length) {
+      streamSources = data.sources;
       const sourcesEl = document.createElement("div");
       sourcesEl.className = "message-sources";
       sourcesEl.innerHTML =

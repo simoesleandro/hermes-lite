@@ -365,6 +365,18 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             return jsonify({"error": "tarefa não encontrada"}), 404
         return jsonify({"ok": True})
 
+    @app.route("/api/handoff/juridico", methods=["POST"])
+    def handoff_juridico_route():
+        from services.handoff import build_juridico_handoff_message
+
+        data = request.get_json(force=True)
+        dossier = (data.get("dossier") or data.get("investigation") or "").strip()
+        if not dossier:
+            return jsonify({"error": "dossier é obrigatório"}), 400
+        sources = data.get("sources") or []
+        message = build_juridico_handoff_message(dossier, sources)
+        return jsonify({"agent": "juridico", "skill": "parecer", "message": message})
+
     @app.route("/upload/pdf", methods=["POST"])
     def upload_pdf():
         if "file" not in request.files:
