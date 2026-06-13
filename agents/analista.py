@@ -139,7 +139,10 @@ class AnalistaAgent(BaseAgent):
         messages = self._build_interpret_messages(message, code, result)
         return get_completion(messages, self.complexity)
 
-    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator:
+    def stream(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None, **kwargs,
+    ) -> Generator:
         # Phase 1 — GENERATE
         yield {"progress": "🧠 Gerando código de análise..."}
         code = self._generate_code(message)

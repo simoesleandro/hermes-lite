@@ -187,15 +187,21 @@ class OpsAgent(BaseAgent):
     def __init__(self, db=None):
         super().__init__(db)
 
-    def _build_messages(self, message: str, session_id: str) -> list[dict]:
-        history = self.db.get_history_as_messages(self.name, session_id) if self.db else []
+    def _build_messages(
+        self, message: str, session_id: str, conversation_id: str | None = None,
+    ) -> list[dict]:
+        history = self._get_history(session_id, conversation_id) if self.db else []
+        system = self.system_prompt + (self._memory_block(conversation_id) if self.db else "")
         return (
-            [{"role": "system", "content": self.system_prompt}]
+            [{"role": "system", "content": system}]
             + history
             + [{"role": "user", "content": message}]
         )
 
-    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
+    def process(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> str:
         action, service = _parse(message)
 
         if action == "status":
@@ -204,9 +210,14 @@ class OpsAgent(BaseAgent):
         if action in ("start", "stop", "restart") and service:
             return _format_sc_result(action, service, _run_sc(action, service))
 
-        return get_completion(self._build_messages(message, session_id, image_b64), self.complexity)
+        return get_completion(
+            self._build_messages(message, session_id, conversation_id), self.complexity,
+        )
 
-    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator:
+    def stream(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> Generator:
         action, service = _parse(message)
 
         if action == "status":
@@ -219,4 +230,6 @@ class OpsAgent(BaseAgent):
             yield _format_sc_result(action, service, _run_sc(action, service))
             return
 
-        yield from stream_completion(self._build_messages(message, session_id, image_b64), self.complexity)
+        yield from stream_completion(
+            self._build_messages(message, session_id, conversation_id), self.complexity,
+        )

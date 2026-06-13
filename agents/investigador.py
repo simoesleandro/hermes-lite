@@ -96,7 +96,10 @@ class InvestigadorAgent(BaseAgent):
                     resultados[nome] = {"erro": str(exc)}
         return get_completion(self._build_synthesize_messages(message, resultados), self.complexity)
 
-    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator:
+    def stream(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None, **kwargs,
+    ) -> Generator:
         # Phase 1 — PLAN
         yield {"progress": "🔍 Analisando pergunta e planejando investigação..."}
         plano = self._plan(message)

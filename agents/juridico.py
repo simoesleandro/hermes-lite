@@ -57,7 +57,9 @@ class JuridicoAgent(BaseAgent):
     def __init__(self, db: Database):
         super().__init__(db)
 
-    def _build_messages(self, message: str, session_id: str) -> list[dict]:
+    def _build_messages(
+        self, message: str, session_id: str, conversation_id: str | None = None,
+    ) -> list[dict]:
         resumo = self._client.get_resumo()
         alertas = self._client.get_alertas(severidade="alta", limit=10)
 
@@ -66,19 +68,33 @@ class JuridicoAgent(BaseAgent):
         else:
             context = self._format_context(resumo, alertas)
 
-        system = self.system_prompt + f"\n\n=== DADOS REAIS DO SENTINELA RJ ===\n{context}"
-        history = self.db.get_history_as_messages(self.name, session_id)
+        system = (
+            self.system_prompt
+            + f"\n\n=== DADOS REAIS DO SENTINELA RJ ===\n{context}"
+            + self._memory_block(conversation_id)
+        )
+        history = self._get_history(session_id, conversation_id)
         return (
             [{"role": "system", "content": system}]
             + history
             + [{"role": "user", "content": message}]
         )
 
-    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
-        return get_completion(self._build_messages(message, session_id, image_b64), self.complexity)
+    def process(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> str:
+        return get_completion(
+            self._build_messages(message, session_id, conversation_id), self.complexity,
+        )
 
-    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator[str, None, None]:
-        yield from stream_completion(self._build_messages(message, session_id, image_b64), self.complexity)
+    def stream(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> Generator[str, None, None]:
+        yield from stream_completion(
+            self._build_messages(message, session_id, conversation_id), self.complexity,
+        )
 
     @staticmethod
     def _brl(v) -> str:

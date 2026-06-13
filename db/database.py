@@ -122,6 +122,52 @@ class Database:
             ).fetchall()
         return [{"role": row["role"], "content": row["content"]} for row in reversed(rows)]
 
+    def get_conversation_history_as_messages(
+        self, agent: str, conversation_id: str, limit: int = 20,
+    ) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT role, content FROM messages "
+                "WHERE agent = ? AND conversation_id = ? ORDER BY id ASC",
+                (agent, conversation_id),
+            ).fetchall()
+        msgs = [{"role": row["role"], "content": row["content"]} for row in rows]
+        if len(msgs) > limit:
+            return msgs[-limit:]
+        return msgs
+
+    def get_cross_chat_memory(
+        self,
+        agent: str,
+        exclude_conv_id: str | None = None,
+        limit: int = 5,
+    ) -> list[str]:
+        with self._connect() as conn:
+            if exclude_conv_id:
+                rows = conn.execute(
+                    """
+                    SELECT content FROM messages
+                    WHERE agent = ? AND role = 'user'
+                      AND conversation_id IS NOT NULL
+                      AND conversation_id != ?
+                    ORDER BY id DESC LIMIT ?
+                    """,
+                    (agent, exclude_conv_id, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT content FROM messages
+                    WHERE agent = ? AND role = 'user'
+                      AND conversation_id IS NOT NULL
+                    ORDER BY id DESC LIMIT ?
+                    """,
+                    (agent, limit),
+                ).fetchall()
+        snippets = [row["content"].strip()[:240] for row in rows if row["content"].strip()]
+        snippets.reverse()
+        return snippets
+
     def clear_history(self, agent: str, session_id: str) -> int:
         with self._connect() as conn:
             cursor = conn.execute(

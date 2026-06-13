@@ -92,3 +92,28 @@ def test_delete_conversation(db):
 
 def test_delete_conversation_missing(db):
     assert db.delete_conversation("missing") is False
+
+
+def test_conversation_history_as_messages(db):
+    db.create_conversation("conv-h1", "Saúde A", "saude")
+    db.create_conversation("conv-h2", "Saúde B", "saude")
+    db.save_message("saude", "user", "Peso 80kg", "s1", conversation_id="conv-h1")
+    db.save_message("saude", "assistant", "Registrado", "s1", conversation_id="conv-h1")
+    db.save_message("saude", "user", "Bebi água", "s2", conversation_id="conv-h2")
+
+    hist = db.get_conversation_history_as_messages("saude", "conv-h1")
+    assert len(hist) == 2
+    assert hist[0]["content"] == "Peso 80kg"
+
+
+def test_cross_chat_memory_excludes_current(db):
+    db.create_conversation("conv-a", "A", "saude")
+    db.create_conversation("conv-b", "B", "saude")
+    db.save_message("saude", "user", "Meta: 83kg", "s1", conversation_id="conv-a")
+    db.save_message("saude", "user", "HRV baixo", "s2", conversation_id="conv-b")
+
+    mem = db.get_cross_chat_memory("saude", exclude_conv_id="conv-b", limit=5)
+    assert mem == ["Meta: 83kg"]
+
+    mem_all = db.get_cross_chat_memory("saude", exclude_conv_id="conv-a", limit=5)
+    assert mem_all == ["HRV baixo"]

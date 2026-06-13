@@ -31,7 +31,9 @@ class LeitorPDFAgent(BaseAgent):
     def set_pdf_context(self, text: str, filename: str, pages: int) -> None:
         self._pdf_context = {"text": text, "filename": filename, "pages": pages}
 
-    def _build_messages(self, message: str, session_id: str) -> list[dict]:
+    def _build_messages(
+        self, message: str, session_id: str, conversation_id: str | None = None,
+    ) -> list[dict]:
         if self._pdf_context:
             pdf = self._pdf_context
             system = (
@@ -42,15 +44,22 @@ class LeitorPDFAgent(BaseAgent):
         else:
             system = _SYSTEM_NO_PDF
 
-        history = self.db.get_history_as_messages(self.name, session_id)
+        system += self._memory_block(conversation_id)
+        history = self._get_history(session_id, conversation_id)
         return (
             [{"role": "system", "content": system}]
             + history
             + [{"role": "user", "content": message}]
         )
 
-    def process(self, message: str, session_id: str) -> str:
-        return get_completion(self._build_messages(message, session_id), self.complexity)
+    def process(self, message: str, session_id: str, conversation_id: str | None = None) -> str:
+        return get_completion(
+            self._build_messages(message, session_id, conversation_id), self.complexity,
+        )
 
-    def stream(self, message: str, session_id: str) -> Generator[str, None, None]:
-        yield from stream_completion(self._build_messages(message, session_id), self.complexity)
+    def stream(
+        self, message: str, session_id: str, conversation_id: str | None = None, **kwargs,
+    ) -> Generator[str, None, None]:
+        yield from stream_completion(
+            self._build_messages(message, session_id, conversation_id), self.complexity,
+        )

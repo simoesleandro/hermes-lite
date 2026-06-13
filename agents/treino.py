@@ -49,7 +49,10 @@ class TreinoAgent(BaseAgent):
     def __init__(self, db: Database):
         super().__init__(db)
 
-    def _build_messages(self, message: str, session_id: str, image_b64: str | None = None) -> list[dict]:
+    def _build_messages(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> list[dict]:
         analise  = self._client.get_analise_treinos(dias=30)
         recentes = self._client.get_treinos_recentes(dias=7)
         corpo    = self._client.get_corpo(dias=90)
@@ -57,8 +60,8 @@ class TreinoAgent(BaseAgent):
         corridas = self._client.get_corridas(dias=30)
 
         context = self._format_context(analise, recentes, corpo, sono, corridas)
-        system = self.system_prompt + (f"\n\n{context}" if context else "")
-        history = self.db.get_history_as_messages(self.name, session_id)
+        system = self.system_prompt + (f"\n\n{context}" if context else "") + self._memory_block(conversation_id)
+        history = self._get_history(session_id, conversation_id)
         if image_b64:
             mime_type = "image/jpeg"
             data = image_b64
@@ -77,11 +80,21 @@ class TreinoAgent(BaseAgent):
             + [{"role": "user", "content": user_content}]
         )
 
-    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
-        return get_completion(self._build_messages(message, session_id, image_b64), self.complexity)
+    def process(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> str:
+        return get_completion(
+            self._build_messages(message, session_id, image_b64, conversation_id), self.complexity,
+        )
 
-    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator[str, None, None]:
-        yield from stream_completion(self._build_messages(message, session_id, image_b64), self.complexity)
+    def stream(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> Generator[str, None, None]:
+        yield from stream_completion(
+            self._build_messages(message, session_id, image_b64, conversation_id), self.complexity,
+        )
 
     @staticmethod
     def _format_context(

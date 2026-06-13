@@ -485,7 +485,9 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             full_response: list[str] = []
             provider = "unknown"
             try:
-                for item in agent.stream(message, session_id, image_b64=image_b64):
+                for item in agent.stream(
+                    message, session_id, image_b64=image_b64, conversation_id=conv_id,
+                ):
                     if isinstance(item, dict):
                         if "progress" in item:
                             yield _sse({"progress": item["progress"]})

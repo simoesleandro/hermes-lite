@@ -123,16 +123,19 @@ class SaudeAgent(BaseAgent):
 
         return None
 
-    def _build_messages(self, message: str, session_id: str, image_b64: str | None = None) -> list[dict]:
+    def _build_messages(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> list[dict]:
         registro = self._try_register(message)
         summary = self._client.get_health_summary()
         context = "" if summary.get("offline") else self._format_summary(summary)
-        system = self.system_prompt
+        system = self.system_prompt + self._memory_block(conversation_id)
         if registro:
             system += f"\n\n{registro}"
         if context:
             system += f"\n\n{context}"
-        history = self.db.get_history_as_messages(self.name, session_id)
+        history = self._get_history(session_id, conversation_id)
         if image_b64:
             mime_type = "image/jpeg"
             data = image_b64
@@ -151,13 +154,23 @@ class SaudeAgent(BaseAgent):
             + [{"role": "user", "content": user_content}]
         )
 
-    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
+    def process(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> str:
         complexity = Complexity.HEAVY if image_b64 else self.complexity
-        return get_completion(self._build_messages(message, session_id, image_b64), complexity)
+        return get_completion(
+            self._build_messages(message, session_id, image_b64, conversation_id), complexity,
+        )
 
-    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator[str, None, None]:
+    def stream(
+        self, message: str, session_id: str, image_b64: str | None = None,
+        conversation_id: str | None = None,
+    ) -> Generator[str, None, None]:
         complexity = Complexity.HEAVY if image_b64 else self.complexity
-        yield from stream_completion(self._build_messages(message, session_id, image_b64), complexity)
+        yield from stream_completion(
+            self._build_messages(message, session_id, image_b64, conversation_id), complexity,
+        )
 
     @staticmethod
     def _format_summary(s: dict) -> str:
