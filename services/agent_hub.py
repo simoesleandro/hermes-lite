@@ -84,6 +84,27 @@ class AgentHub:
         label = AGENT_LABELS.get(agent_name, agent_name)
         return f"🤖 {label}\n\n{response}", agent_name
 
+    def handoff_investigador(
+        self,
+        session_id: str,
+        alert: dict | None = None,
+        context: str = "",
+    ) -> tuple[str, str]:
+        from services.handoff import build_investigador_handoff_message
+
+        msg = build_investigador_handoff_message(context, alert)
+        return self.chat(msg, session_id, agent_name="investigador", skill_id="rapido")
+
+    def handoff_juridico_from_alert(
+        self,
+        session_id: str,
+        alert: dict,
+    ) -> tuple[str, str]:
+        from services.handoff import build_juridico_from_alert
+
+        msg = build_juridico_from_alert(alert)
+        return self.chat(msg, session_id, agent_name="juridico")
+
     def clear_session(self, session_id: str, agent_name: str | None = None) -> int:
         if agent_name:
             return self.db.clear_history(agent_name, session_id)

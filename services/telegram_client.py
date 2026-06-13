@@ -70,20 +70,35 @@ def split_message(text: str, limit: int = MAX_MESSAGE_LEN) -> list[str]:
     return chunks
 
 
-def send_message(chat_id: int | str, text: str, parse_mode: str | None = None) -> None:
-    for chunk in split_message(text):
+def send_message(
+    chat_id: int | str,
+    text: str,
+    parse_mode: str | None = None,
+    reply_markup: dict | None = None,
+) -> None:
+    chunks = split_message(text)
+    for i, chunk in enumerate(chunks):
         payload: dict = {"chat_id": chat_id, "text": chunk}
         if parse_mode:
             payload["parse_mode"] = parse_mode
+        if reply_markup and i == len(chunks) - 1:
+            payload["reply_markup"] = reply_markup
         try:
             _api_post("sendMessage", payload)
         except urllib.error.HTTPError as exc:
             body = exc.read().decode()
             logger.error("sendMessage falhou: %s — %s", exc, body)
             if parse_mode:
-                send_message(chat_id, chunk, parse_mode=None)
+                send_message(chat_id, chunk, parse_mode=None, reply_markup=reply_markup if i == len(chunks) - 1 else None)
             else:
                 raise
+
+
+def answer_callback_query(callback_query_id: str, text: str | None = None) -> None:
+    payload: dict = {"callback_query_id": callback_query_id}
+    if text:
+        payload["text"] = text[:200]
+    _api_post("answerCallbackQuery", payload)
 
 
 def send_chat_action(chat_id: int | str, action: str = "typing") -> None:
@@ -99,7 +114,7 @@ def get_updates(offset: int | None = None, timeout: int = 30) -> list[dict]:
         raise ValueError("TELEGRAM_BOT_TOKEN não configurado")
     params: dict[str, str | int] = {
         "timeout": timeout,
-        "allowed_updates": json.dumps(["message"]),
+        "allowed_updates": json.dumps(["message", "callback_query"]),
     }
     if offset is not None:
         params["offset"] = offset

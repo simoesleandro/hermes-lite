@@ -58,3 +58,11 @@ def build_investigador_handoff_message(
 
 def is_sentinela_handoff(message: str) -> bool:
     return "=== CONTEXTO SENTINELA ===" in message
+
+
+def build_juridico_from_alert(alert: dict) -> str:
+    """Parecer jurídico preliminar a partir de alerta Sentinela."""
+    ctx = build_investigador_handoff_message("", alert)
+    return build_juridico_handoff_message(
+        "Análise legal preliminar com base no alerta Sentinela:\n\n" + ctx
+    )

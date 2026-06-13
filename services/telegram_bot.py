@@ -12,7 +12,9 @@ sys.path.insert(0, _ROOT)
 load_dotenv(os.path.join(_ROOT, ".env"))
 
 from services.agent_hub import AGENT_LABELS, AgentHub
+from services.sentinela_telegram import get_cached_alert, send_alerts_panel
 from services.telegram_client import (
+    answer_callback_query,
     get_updates,
     is_chat_allowed,
     send_chat_action,
@@ -35,6 +37,7 @@ _HELP = (
     "/status — agente atual\n"
     "/limpar — apaga histórico da sessão\n"
     "/agentes — lista agentes\n"
+    "/alertas — painel Sentinela com botões Investigar/Parecer\n"
     "/help — esta ajuda"
 )
 
@@ -78,7 +81,54 @@ def handle_command(hub: AgentHub, session_id: str, text: str) -> str | None:
         hub.set_locked_agent(session_id, name)
         return f"Agente fixo: {AGENT_LABELS.get(name, name)}"
 
+    if cmd == "/alertas":
+        return "__SENTINELA_PANEL__"
+
     return None
+
+
+def process_callback_query(hub: AgentHub, callback_query: dict) -> None:
+    cq_id = callback_query.get("id")
+    data = (callback_query.get("data") or "").strip()
+    message = callback_query.get("message") or {}
+    chat = message.get("chat") or {}
+    chat_id = chat.get("id")
+    if chat_id is None or not cq_id:
+        return
+    if not is_chat_allowed(chat_id):
+        logger.warning("Callback de chat não autorizado: %s", chat_id)
+        return
+
+    session_id = AgentHub.session_id("telegram", chat_id)
+    answer_callback_query(cq_id, "Processando…")
+
+    if ":" not in data:
+        return
+    action, idx_raw = data.split(":", 1)
+    try:
+        idx = int(idx_raw)
+    except ValueError:
+        send_message(chat_id, "Callback inválido.")
+        return
+
+    alert = get_cached_alert(chat_id, idx)
+    if not alert:
+        send_message(chat_id, "Alerta expirado. Use /alertas para recarregar.")
+        return
+
+    send_chat_action(chat_id, "typing")
+    try:
+        if action == "inv":
+            reply, agent_used = hub.handoff_investigador(session_id, alert=alert)
+        elif action == "par":
+            reply, agent_used = hub.handoff_juridico_from_alert(session_id, alert)
+        else:
+            return
+        send_message(chat_id, reply)
+        logger.info("callback chat_id=%s action=%s agent=%s", chat_id, action, agent_used)
+    except Exception as exc:
+        logger.exception("Erro no callback")
+        send_message(chat_id, f"Erro: {exc}")
 
 
 def process_update(hub: AgentHub, message: dict) -> None:
@@ -99,6 +149,9 @@ def process_update(hub: AgentHub, message: dict) -> None:
 
     if text.startswith("/"):
         reply = handle_command(hub, session_id, text)
+        if reply == "__SENTINELA_PANEL__":
+            send_alerts_panel(chat_id)
+            return
         if reply is not None:
             send_message(chat_id, reply)
             return
@@ -127,6 +180,9 @@ def run_polling(poll_timeout: int = 30) -> None:
                 msg = upd.get("message")
                 if msg:
                     process_update(hub, msg)
+                cb = upd.get("callback_query")
+                if cb:
+                    process_callback_query(hub, cb)
         except KeyboardInterrupt:
             logger.info("Encerrado pelo usuário")
             break

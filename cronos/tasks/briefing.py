@@ -44,3 +44,10 @@ def run() -> None:
         f"Hermes Cronos • {hora_fmt}"
     )
     notify(msg, title="Briefing diário", discord_webhook=os.getenv("DISCORD_WEBHOOK_BRIEFING"))
+
+    if not resumo.get("offline") and resumo.get("alertas_abertos", 0) > 0:
+        try:
+            from services.sentinela_telegram import send_alerts_panel
+            send_alerts_panel()
+        except Exception:
+            pass
