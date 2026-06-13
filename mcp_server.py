@@ -316,6 +316,27 @@ def workflow_investigacao_parecer(
 
 
 @mcp.tool()
+def dashboard_home() -> str:
+    """Dashboard Home — GTD, Sentinela, Radar, inbox GitHub e saúde."""
+    from services.dashboard import get_dashboard
+    return _json(get_dashboard(_db))
+
+
+@mcp.tool()
+def facts_pending() -> str:
+    """Lista fatos extraídos automaticamente aguardando aprovação."""
+    return _json({"facts": _db.list_facts(status="pending")})
+
+
+@mcp.tool()
+def facts_approve(key: str) -> str:
+    """Confirma um fato pendente (memória auto)."""
+    if not _db.approve_fact(key.strip()):
+        return _json({"error": "fato não encontrado"})
+    return _json({"ok": True, "key": key, "status": "confirmed"})
+
+
+@mcp.tool()
 def github_inbox() -> str:
     """Inbox GitHub: PRs abertos, reviews pendentes, issues atribuídas e CI falhou."""
     from services.github_inbox import fetch_github_inbox

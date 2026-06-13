@@ -63,10 +63,17 @@ class Database:
                     key        TEXT PRIMARY KEY,
                     value      TEXT NOT NULL,
                     category   TEXT,
+                    status     TEXT NOT NULL DEFAULT 'confirmed',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
             """)
+            try:
+                conn.execute(
+                    "ALTER TABLE user_facts ADD COLUMN status TEXT NOT NULL DEFAULT 'confirmed'"
+                )
+            except Exception:
+                pass
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS workflows (
                     id         TEXT PRIMARY KEY,
@@ -551,38 +558,71 @@ class Database:
 
     # ── User facts (memória estruturada) ──────────────────────────────────────
 
-    def list_facts(self, category: str | None = None, limit: int = 50) -> list[dict]:
+    def list_facts(
+        self,
+        category: str | None = None,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
         with self._connect() as conn:
+            clauses: list[str] = []
+            params: list = []
             if category:
-                rows = conn.execute(
-                    "SELECT key, value, category, updated_at FROM user_facts "
-                    "WHERE category = ? ORDER BY updated_at DESC LIMIT ?",
-                    (category, limit),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT key, value, category, updated_at FROM user_facts "
-                    "ORDER BY updated_at DESC LIMIT ?",
-                    (limit,),
-                ).fetchall()
+                clauses.append("category = ?")
+                params.append(category)
+            if status:
+                clauses.append("status = ?")
+                params.append(status)
+            where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            params.append(limit)
+            rows = conn.execute(
+                f"SELECT key, value, category, status, updated_at FROM user_facts "
+                f"{where} ORDER BY updated_at DESC LIMIT ?",
+                params,
+            ).fetchall()
         return [dict(row) for row in rows]
 
-    def upsert_fact(self, key: str, value: str, category: str | None = None) -> None:
+    def upsert_fact(
+        self,
+        key: str,
+        value: str,
+        category: str | None = None,
+        status: str | None = None,
+    ) -> None:
         now = datetime.utcnow().isoformat()
         key = key.strip()[:80]
+        final_status = status or ("pending" if category == "auto" else "confirmed")
         with self._connect() as conn:
+            existing = conn.execute(
+                "SELECT status FROM user_facts WHERE key = ?", (key,)
+            ).fetchone()
+            if existing and existing["status"] == "confirmed" and final_status == "pending":
+                final_status = "confirmed"
             conn.execute(
                 """
-                INSERT INTO user_facts (key, value, category, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO user_facts (key, value, category, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(key) DO UPDATE SET
                     value = excluded.value,
                     category = COALESCE(excluded.category, user_facts.category),
+                    status = CASE
+                        WHEN user_facts.status = 'confirmed' THEN user_facts.status
+                        ELSE excluded.status
+                    END,
                     updated_at = excluded.updated_at
                 """,
-                (key, value.strip()[:500], category, now, now),
+                (key, value.strip()[:500], category, final_status, now, now),
             )
             conn.commit()
+
+    def approve_fact(self, key: str) -> bool:
+        with self._connect() as conn:
+            cur = conn.execute(
+                "UPDATE user_facts SET status = 'confirmed', updated_at = ? WHERE key = ?",
+                (datetime.utcnow().isoformat(), key.strip()),
+            )
+            conn.commit()
+        return cur.rowcount > 0
 
     def delete_fact(self, key: str) -> bool:
         with self._connect() as conn:
@@ -594,7 +634,7 @@ class Database:
         frag = fragment.strip().lower()
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT key, value, category FROM user_facts WHERE lower(key) = ?",
+                "SELECT key, value, category, status FROM user_facts WHERE lower(key) = ?",
                 (frag,),
             ).fetchone()
             if row:

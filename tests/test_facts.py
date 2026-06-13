@@ -50,3 +50,20 @@ def test_format_facts_context(db):
     ctx = db.format_facts_context()
     assert "FATOS SOBRE O USUÁRIO" in ctx
     assert "meta" in ctx
+
+
+def test_pending_auto_fact_approve(db):
+    db.upsert_fact("objetivo", "83kg", category="auto", status="pending")
+    pending = db.list_facts(status="pending")
+    assert len(pending) == 1
+    assert db.approve_fact("objetivo")
+    assert db.list_facts(status="pending") == []
+    confirmed = db.find_fact("objetivo")
+    assert confirmed and confirmed.get("status") == "confirmed"
+
+
+def test_confirmed_not_overwritten_by_auto(db):
+    db.upsert_fact("meta", "83kg", status="confirmed")
+    db.upsert_fact("meta", "84kg", category="auto", status="pending")
+    assert db.find_fact("meta")["value"] == "84kg"
+    assert db.find_fact("meta")["status"] == "confirmed"

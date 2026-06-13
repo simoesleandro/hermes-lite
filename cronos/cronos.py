@@ -10,7 +10,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env
 
 from cronos.notifier import notify
 from cronos.scheduler import run_loop
-from cronos.tasks import morning_digest, resumo_saude, sentinela_semanal, backup
+from cronos.tasks import morning_digest, resumo_saude, sentinela_semanal, backup, facts_review
 
 logging.basicConfig(
     level=logging.INFO,
@@ -62,6 +62,12 @@ _TASKS = [
         "schedule": {"hour": 9, "minute": 30, "weekday": 0},
         "last_run": None,
     },
+    {
+        "name": "facts_review",
+        "fn": _wrap("facts_review", facts_review.run),
+        "schedule": {"hour": 10, "minute": 0, "weekday": 6},
+        "last_run": None,
+    },
 ]
 
 
@@ -72,10 +78,12 @@ def main() -> None:
         from cronos.tasks.morning_digest import run as run_digest
         from cronos.tasks.sentinela_semanal import run as run_sentinela
         from cronos.tasks.backup import run as run_backup
+        from cronos.tasks.facts_review import run as run_facts_review
         run_backup()
         run_digest()
         run_saude()
         run_sentinela()
+        run_facts_review()
         logger.info("Modo teste concluído.")
         sys.exit(0)
 

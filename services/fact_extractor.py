@@ -69,7 +69,7 @@ def schedule_fact_extraction(message: str, db) -> None:
     def _run():
         for fact in extract_facts_from_message(message):
             try:
-                db.upsert_fact(fact["key"], fact["value"], category="auto")
+                db.upsert_fact(fact["key"], fact["value"], category="auto", status="pending")
             except Exception as exc:
                 logger.debug("upsert fact: %s", exc)
 

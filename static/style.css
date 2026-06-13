@@ -793,6 +793,93 @@ body::before {
   white-space: nowrap;
 }
 
+/* ── Home dashboard panel ────────────────────────────── */
+.home-panel {
+  margin: 0 12px 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(124, 58, 237, 0.08);
+  border: 1px solid rgba(124, 58, 237, 0.22);
+  font-size: 0.68rem;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+.home-panel-title {
+  font-weight: 600;
+  font-size: 0.72rem;
+  margin-bottom: 8px;
+  color: #c4b5fd;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.home-refresh-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.75rem;
+}
+.home-refresh-btn:hover { opacity: 1; }
+.home-section { margin-bottom: 8px; }
+.home-section-head {
+  font-weight: 600;
+  opacity: 0.85;
+  margin-bottom: 3px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.home-list { list-style: none; padding: 0; margin: 0; }
+.home-list li {
+  padding: 2px 0;
+  opacity: 0.9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.home-list li.pri-high { color: #fbbf24; }
+.home-stats { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
+.home-stat {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.62rem;
+}
+.home-stat.sev-alta { color: #f87171; }
+.home-stat.ci-fail { color: #f87171; }
+.home-offline { opacity: 0.55; font-size: 0.65rem; }
+.home-loading { opacity: 0.6; font-size: 0.65rem; }
+.facts-pending-block {
+  margin-bottom: 8px;
+  padding: 6px;
+  border-radius: 6px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+.facts-pending-title { font-size: 0.65rem; font-weight: 600; color: #fcd34d; margin-bottom: 4px; }
+.facts-pending-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 4px;
+  font-size: 0.62rem;
+}
+.facts-pending-body { flex: 1; min-width: 0; }
+.facts-pending-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.facts-approve-btn, .facts-reject-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 0.6rem;
+  cursor: pointer;
+}
+.facts-approve-btn { background: rgba(74, 222, 128, 0.2); color: #86efac; }
+.facts-reject-btn { background: rgba(248, 113, 113, 0.2); color: #fca5a5; }
+
 /* ── Sentinela panel ─────────────────────────────────── */
 .sentinela-panel {
   margin: 0 12px 10px;

@@ -372,10 +372,33 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             return jsonify({"error": "tarefa não encontrada"}), 404
         return jsonify({"ok": True})
 
+    @app.route("/api/dashboard")
+    def dashboard_route():
+        from services.dashboard import get_dashboard
+        return jsonify(get_dashboard(db))
+
+    @app.route("/api/webhooks/github", methods=["POST"])
+    def github_webhook_route():
+        from services.github_webhook import handle_github_webhook, verify_signature, webhook_enabled
+
+        if not webhook_enabled():
+            return jsonify({"error": "webhook desabilitado"}), 404
+        secret = os.getenv("GITHUB_WEBHOOK_SECRET", "").strip()
+        raw = request.get_data()
+        sig = request.headers.get("X-Hub-Signature-256", "")
+        if not verify_signature(raw, sig, secret):
+            return jsonify({"error": "assinatura inválida"}), 401
+        import json as _json
+        payload = _json.loads(raw.decode("utf-8"))
+        event = request.headers.get("X-GitHub-Event", "")
+        result = handle_github_webhook(event, payload)
+        return jsonify(result)
+
     @app.route("/api/facts")
     def list_facts_route():
         category = request.args.get("category") or None
-        return jsonify({"facts": db.list_facts(category=category)})
+        status = request.args.get("status") or None
+        return jsonify({"facts": db.list_facts(category=category, status=status)})
 
     @app.route("/api/facts", methods=["POST"])
     def upsert_fact_route():
@@ -386,6 +409,12 @@ def create_app(*, enable_cors: bool = False) -> Flask:
             return jsonify({"error": "key e value são obrigatórios"}), 400
         db.upsert_fact(key, value, category=data.get("category"))
         return jsonify({"ok": True, "key": key})
+
+    @app.route("/api/facts/<key>/approve", methods=["POST"])
+    def approve_fact_route(key: str):
+        if not db.approve_fact(key):
+            return jsonify({"error": "fato não encontrado"}), 404
+        return jsonify({"ok": True, "key": key, "status": "confirmed"})
 
     @app.route("/api/facts/<key>", methods=["DELETE"])
     def delete_fact_route(key: str):

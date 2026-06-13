@@ -247,6 +247,124 @@ function toggleFactsPanel() {
   loadFactsPanel();
 }
 
+async function loadHomePanel() {
+  const panel = document.getElementById("home-panel");
+  if (!panel) return;
+  panel.innerHTML = '<div class="home-loading">Carregando…</div>';
+  try {
+    const res = await fetch("/api/dashboard");
+    const data = await res.json();
+    renderHomePanel(panel, data);
+  } catch {
+    panel.innerHTML = '<div class="home-offline">Dashboard indisponível</div>';
+  }
+}
+
+function renderHomePanel(panel, data) {
+  const gtd = data.gtd || {};
+  const summary = gtd.summary || {};
+  const today = gtd.today || [];
+  const sent = data.sentinela || {};
+  const resumo = sent.resumo || {};
+  const sev = sent.alertas_por_severidade || {};
+  const alertas = sent.alertas || [];
+  const radar = data.radar || {};
+  const picks = radar.picks || [];
+  const inbox = data.github_inbox || {};
+  const health = data.health || {};
+  const pending = data.facts_pending || [];
+
+  let healthLine = "SysHealth offline";
+  if (!health.offline) {
+    const agua = health.agua_hoje_ml || 0;
+    healthLine = `Água ${agua}/3000 ml`;
+  }
+
+  panel.innerHTML = `
+    <div class="home-panel-title">
+      <span>Home</span>
+      <button type="button" class="home-refresh-btn" id="home-refresh-btn" title="Atualizar">↻</button>
+    </div>
+    <div class="home-section">
+      <div class="home-section-head">Saúde</div>
+      <div class="home-stat">${escapeHtml(healthLine)}</div>
+    </div>
+    <div class="home-section">
+      <div class="home-section-head">GTD</div>
+      <div class="home-stats">
+        <span class="home-stat">${summary.today ?? 0} hoje</span>
+        <span class="home-stat">${summary.inbox ?? 0} inbox</span>
+        <span class="home-stat">${summary.week ?? 0} semana</span>
+      </div>
+      <ul class="home-list">
+        ${today.slice(0, 4).map((t) => `
+          <li class="${t.priority === "high" ? "pri-high" : ""}">${escapeHtml(t.title)}</li>
+        `).join("") || "<li>Nenhuma tarefa hoje</li>"}
+      </ul>
+    </div>
+    <div class="home-section">
+      <div class="home-section-head">Sentinela</div>
+      ${resumo.offline ? '<div class="home-offline">Offline</div>' : `
+        <div class="home-stats">
+          <span class="home-stat">${resumo.alertas_abertos ?? 0} alertas</span>
+          <span class="home-stat sev-alta">${sev.alta ?? 0} alta</span>
+        </div>
+        <ul class="home-list">
+          ${alertas.slice(0, 3).map((a) => `
+            <li>${escapeHtml((a.fornecedor || "N/D").slice(0, 22))} — ${escapeHtml(a.tipo || "")}</li>
+          `).join("") || "<li>Sem alertas recentes</li>"}
+        </ul>`}
+    </div>
+    <div class="home-section">
+      <div class="home-section-head">GitHub</div>
+      ${inbox.offline ? `<div class="home-offline">${escapeHtml(inbox.reason || "Sem token")}</div>` : `
+        <ul class="home-list">
+          ${(inbox.prs_open || []).slice(0, 2).map((p) => `
+            <li>PR ${escapeHtml(p.repo || "")}#${p.number}</li>
+          `).join("")}
+          ${(inbox.prs_review || []).slice(0, 2).map((p) => `
+            <li>Review ${escapeHtml(p.repo || "")}#${p.number}</li>
+          `).join("")}
+          ${(inbox.ci_failures || []).slice(0, 2).map((c) => `
+            <li class="ci-fail">CI ${escapeHtml(c.repo || "")}</li>
+          `).join("")}
+          ${!(inbox.prs_open || []).length && !(inbox.prs_review || []).length && !(inbox.ci_failures || []).length
+            ? "<li>Tudo limpo</li>" : ""}
+        </ul>`}
+    </div>
+    <div class="home-section">
+      <div class="home-section-head">Radar ${radar.date ? "· " + escapeHtml(radar.date) : ""}</div>
+      <ul class="home-list">
+        ${picks.slice(0, 3).map((p) => `
+          <li>${escapeHtml(p.full_name || "")} (${p.nota}/10)</li>
+        `).join("") || "<li>Sem digest</li>"}
+      </ul>
+    </div>
+    ${pending.length ? `
+      <div class="home-section">
+        <div class="home-section-head">${pending.length} fato(s) pendente(s)</div>
+        <div class="home-offline">Revise em Memória ↓</div>
+      </div>` : ""}
+  `;
+
+  panel.querySelector("#home-refresh-btn")?.addEventListener("click", () => {
+    loadHomePanel();
+    loadFactsPanel();
+  });
+}
+
+async function approveFact(key) {
+  await fetch(`/api/facts/${encodeURIComponent(key)}/approve`, { method: "POST" });
+  loadFactsPanel();
+  loadHomePanel();
+}
+
+async function rejectFact(key) {
+  await fetch(`/api/facts/${encodeURIComponent(key)}`, { method: "DELETE" });
+  loadFactsPanel();
+  loadHomePanel();
+}
+
 function toggleRadarPanel(agentKey) {
   const panel = document.getElementById("radar-panel");
   if (!panel) return;
@@ -288,7 +406,7 @@ async function loadRadarPanel() {
       appendSystemMessage("Gerando Radar GitHub…");
       fetch("/api/radar/run", { method: "POST" })
         .then((r) => r.json())
-        .then(() => { loadRadarPanel(); loadFactsPanel(); })
+        .then(() => { loadRadarPanel(); loadFactsPanel(); loadHomePanel(); })
         .catch(() => appendSystemMessage("Erro ao gerar radar"));
     });
   } catch {
@@ -311,17 +429,44 @@ async function loadFactsPanel() {
   const panel = document.getElementById("facts-panel");
   if (!panel || panel.hidden) return;
   try {
-    const res = await fetch("/api/facts");
-    const data = await res.json();
-    const facts = data.facts || [];
+    const [allRes, pendingRes] = await Promise.all([
+      fetch("/api/facts"),
+      fetch("/api/facts?status=pending"),
+    ]);
+    const data = await allRes.json();
+    const pendingData = await pendingRes.json();
+    const facts = (data.facts || []).filter((f) => f.status !== "pending");
+    const pending = pendingData.facts || [];
+    const pendingHtml = pending.length ? `
+      <div class="facts-pending-block">
+        <div class="facts-pending-title">Pendentes (${pending.length}) — revisar</div>
+        ${pending.map((f) => `
+          <div class="facts-pending-item">
+            <div class="facts-pending-body">
+              <strong>${escapeHtml(f.key)}</strong>: ${escapeHtml(f.value)}
+            </div>
+            <div class="facts-pending-actions">
+              <button type="button" class="facts-approve-btn">✓</button>
+              <button type="button" class="facts-reject-btn">✕</button>
+            </div>
+          </div>
+        `).join("")}
+      </div>` : "";
     panel.innerHTML = `
       <div class="facts-panel-title">Memória</div>
+      ${pendingHtml}
       <ul class="facts-list">
         ${facts.slice(0, 6).map((f) => `
           <li><strong>${escapeHtml(f.key)}</strong>: ${escapeHtml(f.value)}</li>
-        `).join("") || "<li class='facts-empty'>Digite «lembrar que …»</li>"}
+        `).join("") || (pending.length ? "" : "<li class='facts-empty'>Digite «lembrar que …»</li>")}
       </ul>
     `;
+    panel.querySelectorAll(".facts-pending-item").forEach((row, i) => {
+      const f = pending[i];
+      if (!f) return;
+      row.querySelector(".facts-approve-btn")?.addEventListener("click", () => approveFact(f.key));
+      row.querySelector(".facts-reject-btn")?.addEventListener("click", () => rejectFact(f.key));
+    });
   } catch {
     panel.innerHTML = '<div class="facts-offline">Memória indisponível</div>';
   }
@@ -1470,6 +1615,8 @@ updateBadge("conhecimento");
 attachBtn.style.display = "flex";
 loadConversations();
 loadStatus();
+loadHomePanel();
 loadFactsPanel();
 setInterval(loadStatus, 30_000);
+setInterval(loadHomePanel, 60_000);
 input.focus();
