@@ -59,6 +59,64 @@ class Database:
                 )
             """)
             conn.execute("""
+                CREATE TABLE IF NOT EXISTS knowledge_docs (
+                    id         TEXT PRIMARY KEY,
+                    title      TEXT NOT NULL,
+                    filename   TEXT,
+                    source     TEXT,
+                    created_at TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS knowledge_chunks (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    doc_id      TEXT NOT NULL REFERENCES knowledge_docs(id) ON DELETE CASCADE,
+                    chunk_index INTEGER NOT NULL,
+                    content     TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
+                    content,
+                    doc_id UNINDEXED,
+                    content='knowledge_chunks',
+                    content_rowid='id'
+                )
+            """)
+            for kb_trigger in (
+                """
+                CREATE TRIGGER IF NOT EXISTS knowledge_fts_ai AFTER INSERT ON knowledge_chunks BEGIN
+                    INSERT INTO knowledge_fts(rowid, content, doc_id)
+                    VALUES (new.id, new.content, new.doc_id);
+                END
+                """,
+                """
+                CREATE TRIGGER IF NOT EXISTS knowledge_fts_ad AFTER DELETE ON knowledge_chunks BEGIN
+                    INSERT INTO knowledge_fts(knowledge_fts, rowid, content, doc_id)
+                    VALUES ('delete', old.id, old.content, old.doc_id);
+                END
+                """,
+                """
+                CREATE TRIGGER IF NOT EXISTS knowledge_fts_au AFTER UPDATE ON knowledge_chunks BEGIN
+                    INSERT INTO knowledge_fts(knowledge_fts, rowid, content, doc_id)
+                    VALUES ('delete', old.id, old.content, old.doc_id);
+                    INSERT INTO knowledge_fts(rowid, content, doc_id)
+                    VALUES (new.id, new.content, new.doc_id);
+                END
+                """,
+            ):
+                try:
+                    conn.execute(kb_trigger)
+                except Exception:
+                    pass
+            try:
+                kb_fts_count = conn.execute("SELECT COUNT(*) FROM knowledge_fts").fetchone()[0]
+                chunk_count = conn.execute("SELECT COUNT(*) FROM knowledge_chunks").fetchone()[0]
+                if chunk_count > 0 and kb_fts_count == 0:
+                    conn.execute("INSERT INTO knowledge_fts(knowledge_fts) VALUES('rebuild')")
+            except Exception:
+                pass
+            conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
                     content,
                     conversation_id UNINDEXED,
@@ -438,6 +496,88 @@ class Database:
         if not sections:
             return "Nenhuma tarefa aberta no GTD."
         return "\n\n".join(sections)
+
+    # ── Knowledge base (RAG-lite FTS) ─────────────────────────────────────────
+
+    def ingest_knowledge_doc(
+        self,
+        doc_id: str,
+        title: str,
+        text: str,
+        filename: str | None = None,
+        source: str | None = None,
+    ) -> int:
+        from services.knowledge import chunk_text
+
+        now = datetime.utcnow().isoformat()
+        chunks = chunk_text(text)
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO knowledge_docs (id, title, filename, source, created_at) VALUES (?, ?, ?, ?, ?)",
+                (doc_id, title[:120], filename, source, now),
+            )
+            for i, chunk in enumerate(chunks):
+                conn.execute(
+                    "INSERT INTO knowledge_chunks (doc_id, chunk_index, content) VALUES (?, ?, ?)",
+                    (doc_id, i, chunk),
+                )
+            conn.commit()
+        return len(chunks)
+
+    def list_knowledge_docs(self, limit: int = 30) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT d.id, d.title, d.filename, d.source, d.created_at,
+                       COUNT(c.id) AS chunks
+                FROM knowledge_docs d
+                LEFT JOIN knowledge_chunks c ON c.doc_id = d.id
+                GROUP BY d.id
+                ORDER BY d.created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def delete_knowledge_doc(self, doc_id: str) -> bool:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM knowledge_chunks WHERE doc_id = ?", (doc_id,))
+            cur = conn.execute("DELETE FROM knowledge_docs WHERE id = ?", (doc_id,))
+            conn.commit()
+        return cur.rowcount > 0
+
+    def search_knowledge(self, query: str, limit: int = 5) -> list[dict]:
+        fts_query = " ".join(f'"{w}"' for w in query.split() if w.strip())
+        if not fts_query:
+            return []
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT d.id AS doc_id, d.title, d.filename,
+                       snippet(knowledge_fts, 0, '**', '**', '…', 32) AS snippet,
+                       c.chunk_index
+                FROM knowledge_fts f
+                JOIN knowledge_chunks c ON c.id = f.rowid
+                JOIN knowledge_docs d ON d.id = c.doc_id
+                WHERE knowledge_fts MATCH ?
+                ORDER BY rank
+                LIMIT ?
+                """,
+                (fts_query, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def format_knowledge_context(self, query: str, limit: int = 4) -> str:
+        hits = self.search_knowledge(query, limit=limit)
+        if not hits:
+            return ""
+        lines = ["=== TRECHOS DA BASE DE CONHECIMENTO (use se relevante) ==="]
+        for h in hits:
+            title = h.get("title") or h.get("filename") or "doc"
+            snip = (h.get("snippet") or "").replace("**", "")
+            lines.append(f"• [{title}] {snip}")
+        return "\n".join(lines)
 
     def export_conversation_markdown(self, conv_id: str) -> str:
         meta = self.get_conversation(conv_id)

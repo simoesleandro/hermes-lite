@@ -377,6 +377,38 @@ def create_app(*, enable_cors: bool = False) -> Flask:
         message = build_juridico_handoff_message(dossier, sources)
         return jsonify({"agent": "juridico", "skill": "parecer", "message": message})
 
+    @app.route("/api/knowledge")
+    def list_knowledge_route():
+        return jsonify({"documents": db.list_knowledge_docs()})
+
+    @app.route("/api/knowledge/search")
+    def search_knowledge_route():
+        q = request.args.get("q", "").strip()
+        if not q:
+            return jsonify({"results": []})
+        return jsonify({"results": db.search_knowledge(q)})
+
+    @app.route("/api/knowledge", methods=["POST"])
+    def ingest_knowledge_route():
+        data = request.get_json(force=True)
+        title = (data.get("title") or "").strip()
+        text = (data.get("text") or "").strip()
+        if not title or not text:
+            return jsonify({"error": "title e text são obrigatórios"}), 400
+        doc_id = data.get("id") or str(uuid.uuid4())
+        n_chunks = db.ingest_knowledge_doc(
+            doc_id, title, text,
+            filename=data.get("filename"),
+            source=data.get("source") or "upload",
+        )
+        return jsonify({"ok": True, "id": doc_id, "chunks": n_chunks})
+
+    @app.route("/api/knowledge/<doc_id>", methods=["DELETE"])
+    def delete_knowledge_route(doc_id: str):
+        if not db.delete_knowledge_doc(doc_id):
+            return jsonify({"error": "documento não encontrado"}), 404
+        return jsonify({"ok": True})
+
     @app.route("/upload/pdf", methods=["POST"])
     def upload_pdf():
         if "file" not in request.files:
@@ -421,6 +453,19 @@ def create_app(*, enable_cors: bool = False) -> Flask:
                     "pages": n_pages,
                 }
 
+            persist = request.form.get("persist", "").lower() in ("1", "true", "yes")
+            kb_id = None
+            kb_chunks = 0
+            if persist and text.strip():
+                kb_id = str(uuid.uuid4())
+                kb_chunks = db.ingest_knowledge_doc(
+                    kb_id,
+                    title=f.filename,
+                    text=text,
+                    filename=f.filename,
+                    source="pdf",
+                )
+
             return jsonify({
                 "success": True,
                 "filename": f.filename,
@@ -428,6 +473,8 @@ def create_app(*, enable_cors: bool = False) -> Flask:
                 "chars": len(text),
                 "text": text,
                 "truncated": truncated,
+                "knowledge_id": kb_id,
+                "knowledge_chunks": kb_chunks,
             })
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500

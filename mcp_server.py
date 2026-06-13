@@ -165,5 +165,17 @@ def handoff_investigador_juridico(dossier: str, sources_json: str = "[]") -> str
     return _json({"agent": "juridico", "skill": "parecer", "message": message})
 
 
+@mcp.tool()
+def knowledge_search(query: str, limit: int = 5) -> str:
+    """Busca na base de conhecimento local (FTS5)."""
+    return _json({"results": _db.search_knowledge(query, limit=min(limit, 10))})
+
+
+@mcp.tool()
+def knowledge_list() -> str:
+    """Lista documentos indexados na base de conhecimento."""
+    return _json({"documents": _db.list_knowledge_docs()})
+
+
 if __name__ == "__main__":
     mcp.run()

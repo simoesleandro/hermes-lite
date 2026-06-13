@@ -841,6 +841,38 @@ body::before {
 .tasks-list li.pri-high { color: #fbbf24; }
 .tasks-offline, .tasks-loading { opacity: 0.6; font-size: 0.7rem; }
 
+/* ── Knowledge panel ─────────────────────────────────── */
+.knowledge-panel {
+  margin: 0 12px 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.06);
+  font-size: 0.72rem;
+}
+.knowledge-panel-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #7dd3fc;
+}
+.knowledge-hint { opacity: 0.65; font-size: 0.65rem; margin-bottom: 8px; }
+.knowledge-list { list-style: none; padding: 0; margin: 0; }
+.knowledge-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.knowledge-doc-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.knowledge-doc-meta { opacity: 0.55; font-size: 0.62rem; flex-shrink: 0; }
+.knowledge-del {
+  background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 0 4px;
+}
+.knowledge-del:hover { color: #f87171; }
+.knowledge-empty { opacity: 0.6; }
+.knowledge-offline, .knowledge-loading { opacity: 0.6; font-size: 0.7rem; }
+
 .export-conv-btn {
   align-self: flex-end;
   margin-bottom: 8px;

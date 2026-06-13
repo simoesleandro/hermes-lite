@@ -2,6 +2,7 @@ from typing import Generator
 from .base import BaseAgent
 from model_router import Complexity, get_completion, stream_completion
 from db.database import Database
+import os
 
 
 _SYSTEM_NO_PDF = (
@@ -43,6 +44,11 @@ class LeitorPDFAgent(BaseAgent):
             )
         else:
             system = _SYSTEM_NO_PDF
+
+        if os.getenv("KNOWLEDGE_RAG", "1") == "1":
+            kb = self.db.format_knowledge_context(message, limit=3)
+            if kb:
+                system += f"\n\n{kb}"
 
         system += self._memory_block(conversation_id)
         history = self._get_history(session_id, conversation_id)

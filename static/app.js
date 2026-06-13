@@ -127,6 +127,7 @@ function updateBadge(agentKey) {
   attachBtn.style.display     = "flex";
   toggleSentinelaPanel(agentKey);
   toggleTasksPanel(agentKey);
+  toggleKnowledgePanel(agentKey);
   updateSkillBadge(agentKey);
 }
 
@@ -232,6 +233,55 @@ function dequeueAndSend() {
     updateSkillBadge(state.currentAgent);
   }
   dispatchMessage(next.text);
+}
+
+function toggleKnowledgePanel(agentKey) {
+  const panel = document.getElementById("knowledge-panel");
+  if (!panel) return;
+  if (agentKey === "conhecimento" || agentKey === "leitor") {
+    panel.hidden = false;
+    loadKnowledgePanel();
+  } else {
+    panel.hidden = true;
+  }
+}
+
+async function loadKnowledgePanel() {
+  const panel = document.getElementById("knowledge-panel");
+  if (!panel || panel.hidden) return;
+  panel.innerHTML = '<div class="knowledge-loading">Carregando…</div>';
+  try {
+    const res  = await fetch("/api/knowledge");
+    const data = await res.json();
+    renderKnowledgePanel(panel, data.documents || []);
+  } catch {
+    panel.innerHTML = '<div class="knowledge-offline">Base indisponível</div>';
+  }
+}
+
+function renderKnowledgePanel(panel, docs) {
+  panel.innerHTML = `
+    <div class="knowledge-panel-title">Base de conhecimento</div>
+    <div class="knowledge-hint">PDFs anexados em Conhecimento/Leitor são indexados automaticamente.</div>
+    <ul class="knowledge-list">
+      ${docs.slice(0, 8).map((d) => `
+        <li>
+          <span class="knowledge-doc-title">${escapeHtml(d.title || d.filename || "doc")}</span>
+          <span class="knowledge-doc-meta">${d.chunks || 0} trechos</span>
+          <button type="button" class="knowledge-del" data-id="${d.id}" title="Remover">×</button>
+        </li>
+      `).join("") || "<li class='knowledge-empty'>Nenhum documento indexado</li>"}
+    </ul>
+  `;
+  panel.querySelectorAll(".knowledge-del").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      if (!id || !confirm("Remover documento da base?")) return;
+      await fetch(`/api/knowledge/${id}`, { method: "DELETE" });
+      loadKnowledgePanel();
+    });
+  });
 }
 
 function toggleTasksPanel(agentKey) {
@@ -527,10 +577,14 @@ fileInput.addEventListener("change", async () => {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("session_id", sessionId);
+      if (state.currentAgent === "conhecimento" || state.currentAgent === "leitor") {
+        fd.append("persist", "1");
+      }
       const res  = await fetch("/upload/pdf", { method: "POST", body: fd });
       const data = await res.json();
       if (data.success) {
         attachedFile = { type: "pdf", filename: data.filename, text: data.text, pages: data.pages };
+        if (data.knowledge_id) loadKnowledgePanel();
       } else {
         clearFileChip();
         appendSystemMessage(`❌ Erro: ${data.error}`);
@@ -549,6 +603,13 @@ fileInput.addEventListener("change", async () => {
     } else if (ext === "txt") {
       const text = await file.text();
       attachedFile = { type: "txt", filename: file.name, text };
+      if (state.currentAgent === "conhecimento" || state.currentAgent === "leitor") {
+        fetch("/api/knowledge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: file.name, text, filename: file.name, source: "txt" }),
+        }).then(() => loadKnowledgePanel()).catch(() => {});
+      }
     }
   } catch {
     clearFileChip();
