@@ -8,7 +8,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from services.fact_extractor import auto_extract_enabled, extract_facts_from_message
 
 
-def test_auto_extract_disabled_by_default():
+def test_auto_extract_disabled_by_default(monkeypatch):
+    monkeypatch.setenv("USER_FACTS_AUTO", "0")
     assert not auto_extract_enabled()
 
 
