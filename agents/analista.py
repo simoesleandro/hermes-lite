@@ -143,17 +143,11 @@ class AnalistaAgent(BaseAgent):
         # Phase 1 — GENERATE
         yield {"progress": "🧠 Gerando código de análise..."}
         code = self._generate_code(message)
-        print("=== CÓDIGO GERADO ===")
-        print(code)
-        print("=== FIM CÓDIGO ===")
         yield {"progress": f"✅ Código gerado ({len(code.splitlines())} linhas)"}
 
         # Phase 2 — EXECUTE
         yield {"progress": "⚙️ Executando análise..."}
         result = execute_code(code)
-        print("=== RESULTADO ===")
-        print(result)
-        print("=== FIM RESULTADO ===")
 
         if not result["success"]:
             yield {"progress": f"❌ Erro na execução: {str(result.get('error', ''))[:120]}"}

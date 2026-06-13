@@ -60,11 +60,11 @@ class SentinelaAgent(BaseAgent):
             + [{"role": "user", "content": message}]
         )
 
-    def process(self, message: str, session_id: str) -> str:
-        return get_completion(self._build_messages(message, session_id), self.complexity)
+    def process(self, message: str, session_id: str, image_b64: str | None = None) -> str:
+        return get_completion(self._build_messages(message, session_id, image_b64), self.complexity)
 
-    def stream(self, message: str, session_id: str) -> Generator[str, None, None]:
-        yield from stream_completion(self._build_messages(message, session_id), self.complexity)
+    def stream(self, message: str, session_id: str, image_b64: str | None = None) -> Generator[str, None, None]:
+        yield from stream_completion(self._build_messages(message, session_id, image_b64), self.complexity)
 
     @staticmethod
     def _brl(v) -> str:

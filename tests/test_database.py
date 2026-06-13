@@ -50,3 +50,22 @@ def test_get_conversations_empty(db):
 
 def test_get_conversation_messages_empty(db):
     assert db.get_conversation_messages("nonexistent") == []
+
+
+def test_search_conversations(db):
+    db.create_conversation("conv-search", "Contrato PNCP suspeito", "sentinela")
+    db.save_message("sentinela", "user", "anomalia no contrato público", "s1", conversation_id="conv-search")
+    db.save_message("sentinela", "assistant", "Alerta de superfaturamento detectado", "s1", conversation_id="conv-search")
+    results = db.search_conversations("superfaturamento")
+    assert len(results) >= 1
+    assert results[0]["id"] == "conv-search"
+
+
+def test_export_conversation_markdown(db):
+    db.create_conversation("conv-exp", "Parecer jurídico", "juridico")
+    db.save_message("juridico", "user", "Analise a dispensa", "s1", conversation_id="conv-exp")
+    db.save_message("juridico", "assistant", "Art. 75 inciso II aplicável", "s1", conversation_id="conv-exp")
+    md = db.export_conversation_markdown("conv-exp")
+    assert "# Parecer jurídico" in md
+    assert "juridico" in md
+    assert "Art. 75" in md

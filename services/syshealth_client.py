@@ -1,29 +1,67 @@
 import json
+import os
 import urllib.request
-from urllib.error import URLError
 
 _OFFLINE_SUMMARY: dict = {
-    "agua":        None,
-    "peso":        None,
-    "sono":        None,
-    "passos":      None,
-    "treino":      None,
-    "deficit":     None,
-    "proteina":    None,
-    "tirzepatida": None,
-    "offline":     True,
+    "agua_hoje_ml":    None,
+    "peso_kg":         None,
+    "sono_horas":      None,
+    "passos_hoje":     None,
+    "treino_hoje":     None,
+    "deficit_calorico": None,
+    "proteina_g":      None,
+    "carboidrato_g":   None,
+    "hrv":             None,
+    "fadiga":          None,
+    "tirzepatida_hoje": False,
+    "offline":         True,
 }
 
 
 class SysHealthClient:
-    def __init__(self, base_url: str = "http://localhost:5060"):
-        self.base_url = base_url.rstrip("/")
+    def __init__(self, base_url: str | None = None):
+        self.base_url = (base_url or os.getenv("SYSHEALTH_URL", "http://localhost:5060")).rstrip("/")
         self._timeout = 10
 
     def _get(self, path: str) -> dict | list:
         req = urllib.request.Request(f"{self.base_url}{path}")
         with urllib.request.urlopen(req, timeout=self._timeout) as resp:
             return json.loads(resp.read())
+
+    def _post(self, path: str, payload: dict) -> dict:
+        data = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            f"{self.base_url}{path}",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=self._timeout) as resp:
+            return json.loads(resp.read())
+
+    def register_agua(self, ml: int) -> dict:
+        """Registra consumo de água em ml. Retorna {ok, error?}."""
+        try:
+            result = self._post("/api/agua", {"ml": ml})
+            return {"ok": True, "data": result}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def register_peso(self, kg: float) -> dict:
+        """Registra peso em kg."""
+        try:
+            result = self._post("/api/peso", {"kg": kg})
+            return {"ok": True, "data": result}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def register_tirzepatida(self) -> dict:
+        """Marca tirzepatida como tomada hoje."""
+        try:
+            result = self._post("/api/tirzepatida", {})
+            return {"ok": True, "data": result}
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
 
     def get_health_summary(self) -> dict:
         """Retorna resumo diário do SysHealth. Offline → dict com valores None."""

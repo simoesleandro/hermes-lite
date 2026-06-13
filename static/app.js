@@ -113,6 +113,63 @@ function updateBadge(agentKey) {
   lucide.createIcons();
   agentBadgeLabel.textContent = meta.label;
   attachBtn.style.display     = "flex";
+  toggleSentinelaPanel(agentKey);
+}
+
+function toggleSentinelaPanel(agentKey) {
+  const panel = document.getElementById("sentinela-panel");
+  if (!panel) return;
+  if (agentKey === "sentinela" || agentKey === "juridico") {
+    panel.hidden = false;
+    loadSentinelaPanel();
+  } else {
+    panel.hidden = true;
+  }
+}
+
+async function loadSentinelaPanel() {
+  const panel = document.getElementById("sentinela-panel");
+  if (!panel || panel.hidden) return;
+  panel.innerHTML = '<div class="sentinela-loading">Carregando…</div>';
+  try {
+    const res  = await fetch("/api/sentinela/resumo");
+    const data = await res.json();
+    renderSentinelaPanel(panel, data);
+  } catch {
+    panel.innerHTML = '<div class="sentinela-offline">Sentinela indisponível</div>';
+  }
+}
+
+function renderSentinelaPanel(panel, data) {
+  const r = data.resumo || {};
+  if (r.offline) {
+    panel.innerHTML = '<div class="sentinela-offline">Banco Sentinela offline</div>';
+    return;
+  }
+  const sev = data.alertas_por_severidade || {};
+  const alertas = (data.alertas_criticos || []).slice(0, 3);
+  panel.innerHTML = `
+    <div class="sentinela-panel-title">Painel Sentinela</div>
+    <div class="sentinela-stats">
+      <span class="sentinela-stat">${r.alertas_abertos ?? 0} alertas</span>
+      <span class="sentinela-stat sev-alta">${sev.alta ?? 0} alta</span>
+      <span class="sentinela-stat sev-media">${sev.media ?? 0} média</span>
+    </div>
+    <ul class="sentinela-alerts">
+      ${alertas.map((a) => `
+        <li class="sev-${a.severidade || 'baixa'}">
+          <strong>${escapeHtml(a.fornecedor || "N/D")}</strong>
+          <span>${escapeHtml(a.tipo || "")}</span>
+        </li>
+      `).join("") || "<li>Nenhum alerta crítico</li>"}
+    </ul>
+  `;
+}
+
+function escapeHtml(text) {
+  const d = document.createElement("div");
+  d.textContent = text;
+  return d.innerHTML;
 }
 
 // ── Agent dropdown ────────────────────────────────────
@@ -582,6 +639,63 @@ form.addEventListener("submit", async (e) => {
   };
 });
 
+// ── Conversation search ───────────────────────────────
+let _searchTimer = null;
+const convSearch = document.getElementById("conv-search");
+if (convSearch) {
+  convSearch.addEventListener("input", () => {
+    clearTimeout(_searchTimer);
+    const q = convSearch.value.trim();
+    if (!q) {
+      loadConversations();
+      return;
+    }
+    _searchTimer = setTimeout(async () => {
+      try {
+        const res  = await fetch(`/api/conversations/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        renderSearchResults(data.results || []);
+      } catch { /* ignore */ }
+    }, 300);
+  });
+}
+
+function renderSearchResults(results) {
+  const list = document.getElementById("conv-list");
+  list.innerHTML = "";
+  if (!results.length) {
+    list.innerHTML = '<div class="conv-group-label">Nenhum resultado</div>';
+    return;
+  }
+  const groupEl = document.createElement("div");
+  groupEl.classList.add("conv-group-label");
+  groupEl.textContent = "Resultados";
+  list.appendChild(groupEl);
+  for (const conv of results) {
+    const item = document.createElement("div");
+    item.classList.add("conv-item");
+    if (conv.id === state.currentConvId) item.classList.add("active");
+    item.dataset.convId = conv.id;
+    const iconEl = document.createElement("span");
+    iconEl.classList.add("conv-item-icon");
+    iconEl.appendChild(lucideIcon((AGENT_META[conv.agent] || AGENT_META.conhecimento).icon, 14));
+    const titleEl = document.createElement("span");
+    titleEl.classList.add("conv-item-title");
+    titleEl.textContent = conv.title;
+    item.appendChild(iconEl);
+    item.appendChild(titleEl);
+    if (conv.snippet) {
+      const snip = document.createElement("span");
+      snip.classList.add("conv-item-snippet");
+      snip.textContent = conv.snippet.replace(/\*\*/g, "");
+      item.appendChild(snip);
+    }
+    item.addEventListener("click", () => loadConversation(conv.id, conv.agent));
+    list.appendChild(item);
+  }
+  lucide.createIcons();
+}
+
 // ── Conversation management ───────────────────────────
 async function loadConversations() {
   try {
@@ -647,11 +761,26 @@ async function loadConversation(convId, agent) {
     for (const msg of data.messages) {
       appendMessage(msg.role === "user" ? "user" : "assistant", msg.content, agent);
     }
+    addExportButton(convId);
   } catch {
     appendSystemMessage("Erro ao carregar conversa");
   }
 
   input.focus();
+}
+
+function addExportButton(convId) {
+  const existing = document.getElementById("export-conv-btn");
+  if (existing) existing.remove();
+  const btn = document.createElement("button");
+  btn.id = "export-conv-btn";
+  btn.className = "export-conv-btn";
+  btn.textContent = "Exportar MD";
+  btn.title = "Exportar conversa em Markdown";
+  btn.addEventListener("click", () => {
+    window.open(`/api/conversations/${convId}/export?format=md`, "_blank");
+  });
+  chatInner.insertBefore(btn, chatInner.firstChild);
 }
 
 function newConversation() {
@@ -664,6 +793,9 @@ function newConversation() {
 
   chatInner.innerHTML = "";
   app.classList.add("layout-empty");
+
+  const exportBtn = document.getElementById("export-conv-btn");
+  if (exportBtn) exportBtn.remove();
 
   updateBadge("conhecimento");
   agentBadge.classList.remove("locked");

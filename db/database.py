@@ -4,7 +4,6 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "hermes.db")
 
-
 class Database:
     def __init__(self, path: str = DB_PATH):
         self.path = path
@@ -46,6 +45,47 @@ class Database:
                     created_at TEXT NOT NULL
                 )
             """)
+            conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+                    content,
+                    conversation_id UNINDEXED,
+                    agent UNINDEXED,
+                    content='messages',
+                    content_rowid='id'
+                )
+            """)
+            for trigger_sql in (
+                """
+                CREATE TRIGGER IF NOT EXISTS messages_fts_ai AFTER INSERT ON messages BEGIN
+                    INSERT INTO messages_fts(rowid, content, conversation_id, agent)
+                    VALUES (new.id, new.content, new.conversation_id, new.agent);
+                END
+                """,
+                """
+                CREATE TRIGGER IF NOT EXISTS messages_fts_ad AFTER DELETE ON messages BEGIN
+                    INSERT INTO messages_fts(messages_fts, rowid, content, conversation_id, agent)
+                    VALUES ('delete', old.id, old.content, old.conversation_id, old.agent);
+                END
+                """,
+                """
+                CREATE TRIGGER IF NOT EXISTS messages_fts_au AFTER UPDATE ON messages BEGIN
+                    INSERT INTO messages_fts(messages_fts, rowid, content, conversation_id, agent)
+                    VALUES ('delete', old.id, old.content, old.conversation_id, old.agent);
+                    INSERT INTO messages_fts(rowid, content, conversation_id, agent)
+                    VALUES (new.id, new.content, new.conversation_id, new.agent);
+                END
+                """,
+            ):
+                try:
+                    conn.execute(trigger_sql)
+                except Exception:
+                    pass
+            try:
+                fts_count = conn.execute("SELECT COUNT(*) FROM messages_fts").fetchone()[0]
+                if fts_count == 0:
+                    conn.execute("INSERT INTO messages_fts(messages_fts) VALUES('rebuild')")
+            except Exception:
+                pass
             conn.commit()
 
     def save_message(
@@ -123,3 +163,69 @@ class Database:
                 (conv_id,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def get_conversation(self, conv_id: str) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT id, title, agent, created_at FROM conversations WHERE id = ?",
+                (conv_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def search_conversations(self, query: str, agent: str | None = None, limit: int = 30) -> list[dict]:
+        fts_query = " ".join(f'"{w}"' for w in query.split() if w.strip())
+        if not fts_query:
+            return []
+        with self._connect() as conn:
+            if agent:
+                rows = conn.execute(
+                    """
+                    SELECT DISTINCT c.id, c.title, c.agent, c.created_at,
+                           snippet(messages_fts, 0, '**', '**', '…', 20) AS snippet
+                    FROM messages_fts f
+                    JOIN messages m ON m.id = f.rowid
+                    JOIN conversations c ON c.id = m.conversation_id
+                    WHERE messages_fts MATCH ? AND c.agent = ?
+                    ORDER BY c.created_at DESC
+                    LIMIT ?
+                    """,
+                    (fts_query, agent, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT DISTINCT c.id, c.title, c.agent, c.created_at,
+                           snippet(messages_fts, 0, '**', '**', '…', 20) AS snippet
+                    FROM messages_fts f
+                    JOIN messages m ON m.id = f.rowid
+                    JOIN conversations c ON c.id = m.conversation_id
+                    WHERE messages_fts MATCH ?
+                    ORDER BY c.created_at DESC
+                    LIMIT ?
+                    """,
+                    (fts_query, limit),
+                ).fetchall()
+        return [dict(row) for row in rows]
+
+    def export_conversation_markdown(self, conv_id: str) -> str:
+        meta = self.get_conversation(conv_id)
+        if not meta:
+            return ""
+        messages = self.get_conversation_messages(conv_id)
+        lines = [
+            f"# {meta['title']}",
+            "",
+            f"- **Agente:** {meta['agent']}",
+            f"- **Criada em:** {meta['created_at']}",
+            "",
+            "---",
+            "",
+        ]
+        for msg in messages:
+            role = "Usuário" if msg["role"] == "user" else "Assistente"
+            ts = msg.get("timestamp", "")
+            lines.append(f"## {role}" + (f" ({ts})" if ts else ""))
+            lines.append("")
+            lines.append(msg["content"])
+            lines.append("")
+        return "\n".join(lines)

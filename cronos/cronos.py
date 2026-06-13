@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
 
-from cronos.notifier import send_telegram
+from cronos.notifier import notify
 from cronos.scheduler import run_loop
 from cronos.tasks import briefing, resumo_saude, sentinela_semanal
 
@@ -23,7 +23,7 @@ _TZ = ZoneInfo("America/Sao_Paulo")
 
 
 def _log(msg: str) -> None:
-    send_telegram(f"*Hermes Cronos*\n{msg}")
+    notify(f"Hermes Cronos\n{msg}", title="Cronos")
 
 
 def _wrap(name: str, fn):

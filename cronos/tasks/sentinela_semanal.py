@@ -3,7 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from services.sentinela_client import SentinelaClient
-from cronos.notifier import send_telegram
+from cronos.notifier import notify
 
 _TZ = ZoneInfo("America/Sao_Paulo")
 
@@ -23,9 +23,11 @@ def run() -> None:
     top = client.top_contratos(limit=3)
 
     if resumo.get("offline"):
-        send_telegram(
+        notify(
             f"🔎 Relatório Semanal Sentinela RJ — {hoje}\n"
-            "⚠️ Sentinela offline — banco de dados indisponível."
+            "⚠️ Sentinela offline — banco de dados indisponível.",
+            title="Sentinela Semanal",
+            discord_webhook=os.getenv("DISCORD_WEBHOOK_SENTINELA"),
         )
         return
 
@@ -52,4 +54,4 @@ def run() -> None:
         f"🚨 Top Alertas Alta Severidade\n{alertas_txt}\n\n"
         f"💰 Maiores Contratos\n{top_txt}"
     )
-    send_telegram(msg)
+    notify(msg, title="Sentinela Semanal", discord_webhook=os.getenv("DISCORD_WEBHOOK_SENTINELA"))

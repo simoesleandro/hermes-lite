@@ -1,6 +1,6 @@
-from app_factory import classify_agent, create_app
+from app_factory import create_app
 
-app = create_app(enable_cors=False)
+app = create_app(enable_cors=True)
 
 if __name__ == "__main__":
     from waitress import serve

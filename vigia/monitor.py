@@ -12,11 +12,6 @@ SERVICES = {
         "name": "SysHealth API",
         "emoji": "💚",
     },
-    "ollama": {
-        "url": "http://localhost:11434/api/tags",
-        "name": "Ollama",
-        "emoji": "🦙",
-    },
     "cronos": {
         "service_name": "HermesCronos",
         "name": "Hermes Cronos",

@@ -3,7 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from services.syshealth_client import SysHealthClient
-from cronos.notifier import send_telegram
+from cronos.notifier import notify
 
 _META_AGUA = 3000
 _META_PROTEINA = 150
@@ -16,7 +16,11 @@ def run() -> None:
     hoje = datetime.now(_TZ).strftime("%d/%m/%Y")
 
     if data.get("offline"):
-        send_telegram(f"📊 Resumo de Saúde — {hoje}\n⚠️ SysHealth offline — dados indisponíveis.")
+        notify(
+            f"📊 Resumo de Saúde — {hoje}\n⚠️ SysHealth offline — dados indisponíveis.",
+            title="Resumo de Saúde",
+            discord_webhook=os.getenv("DISCORD_WEBHOOK_SAUDE"),
+        )
         return
 
     agua = data.get("agua_hoje_ml") or 0
@@ -46,4 +50,4 @@ def run() -> None:
         f"🏋️ Treino: {_v(data.get('treino_hoje'))}\n"
         f"💉 Tirzepatida: {_v(data.get('tirzepatida_hoje'))}"
     )
-    send_telegram(msg)
+    notify(msg, title="Resumo de Saúde", discord_webhook=os.getenv("DISCORD_WEBHOOK_SAUDE"))

@@ -59,9 +59,14 @@ class TreinoAgent(BaseAgent):
         context = self._format_context(analise, recentes, corpo, sono, corridas)
         system = self.system_prompt + (f"\n\n{context}" if context else "")
         history = self.db.get_history_as_messages(self.name, session_id)
-        if image_b64 is not None:
+        if image_b64:
+            mime_type = "image/jpeg"
+            data = image_b64
+            if image_b64.startswith("data:"):
+                prefix, _, data = image_b64.partition(",")
+                mime_type = prefix.split(":")[1].split(";")[0]
             user_content = [
-                {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image_b64}},
+                {"type": "image", "mime_type": mime_type, "data": data},
                 {"type": "text", "text": message},
             ]
         else:

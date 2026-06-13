@@ -1,8 +1,24 @@
+import re
 from typing import Generator
 from .base import BaseAgent
 from model_router import Complexity, get_completion, stream_completion
 from services.syshealth_client import SysHealthClient
 from db.database import Database
+
+_AGUA_RE = re.compile(
+    r"(?:bebi|registrei|tomei|adicionei)\s+"
+    r"(?:(\d+(?:[.,]\d+)?)\s*(?:l|litros?)|(\d+)\s*(?:ml|mL))",
+    re.I,
+)
+_PESO_RE = re.compile(
+    r"(?:peso|pesando|estou\s+com)\s*(?:de|é|:)?\s*(\d+(?:[.,]\d+)?)\s*kg",
+    re.I,
+)
+_TIRZE_RE = re.compile(
+    r"(?:tomei|apliquei|registrei)\s+(?:a\s+)?(?:tirzepatida|mounjaro)|"
+    r"tirzepatida\s+(?:tomada|aplicada|hoje)",
+    re.I,
+)
 
 
 class SaudeAgent(BaseAgent):
@@ -66,10 +82,56 @@ class SaudeAgent(BaseAgent):
     def __init__(self, db: Database):
         super().__init__(db)
 
+    def _try_register(self, message: str) -> str | None:
+        """Detecta intents de registro e persiste no SysHealth. Retorna nota para o prompt."""
+        m = _AGUA_RE.search(message)
+        if m:
+            litros = m.group(1)
+            ml_raw = m.group(2)
+            if litros:
+                ml = int(float(litros.replace(",", ".")) * 1000)
+            else:
+                ml = int(ml_raw)
+            result = self._client.register_agua(ml)
+            if result["ok"]:
+                summary = self._client.get_health_summary()
+                total = summary.get("agua_hoje_ml") or ml
+                falta = max(0, 3000 - (total or 0))
+                return (
+                    f"[REGISTRO AUTOMÁTICO] Água +{ml} ml registrada no SysHealth. "
+                    f"Total hoje: {total} ml. Faltam {falta} ml para a meta de 3 L."
+                )
+            return f"[REGISTRO FALHOU] Não foi possível registrar água: {result.get('error')}"
+
+        m = _PESO_RE.search(message)
+        if m:
+            kg = float(m.group(1).replace(",", "."))
+            result = self._client.register_peso(kg)
+            if result["ok"]:
+                diff = round(kg - 83, 1)
+                return (
+                    f"[REGISTRO AUTOMÁTICO] Peso {kg} kg registrado no SysHealth. "
+                    f"Distância da meta (83 kg): {diff:+.1f} kg."
+                )
+            return f"[REGISTRO FALHOU] Não foi possível registrar peso: {result.get('error')}"
+
+        if _TIRZE_RE.search(message):
+            result = self._client.register_tirzepatida()
+            if result["ok"]:
+                return "[REGISTRO AUTOMÁTICO] Tirzepatida marcada como tomada hoje no SysHealth."
+            return f"[REGISTRO FALHOU] Não foi possível registrar tirzepatida: {result.get('error')}"
+
+        return None
+
     def _build_messages(self, message: str, session_id: str, image_b64: str | None = None) -> list[dict]:
+        registro = self._try_register(message)
         summary = self._client.get_health_summary()
         context = "" if summary.get("offline") else self._format_summary(summary)
-        system = self.system_prompt + (f"\n\n{context}" if context else "")
+        system = self.system_prompt
+        if registro:
+            system += f"\n\n{registro}"
+        if context:
+            system += f"\n\n{context}"
         history = self.db.get_history_as_messages(self.name, session_id)
         if image_b64:
             mime_type = "image/jpeg"

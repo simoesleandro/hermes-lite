@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import time
 import urllib.request
 from enum import Enum
 from typing import Generator
@@ -8,9 +10,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GROQ_API_KEY    = os.getenv("GROQ_API_KEY", "")
-GEMINI_API_KEY  = os.getenv("GEMINI_API_KEY", "")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+logger = logging.getLogger("hermes.model_router")
+
+GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMMA_MODEL    = os.getenv("GEMMA_MODEL", "gemma-4-4b-it")
+
+_METRICS: list[dict] = []
+_METRICS_MAX = 500
 
 
 class Complexity(Enum):
@@ -57,22 +65,50 @@ def _build_gemini_contents(messages: list[dict]) -> list[dict]:
     return contents
 
 
-# ── Blocking providers ────────────────────────────────────────────────────────
+# ── Google (Gemini + Gemma 4 via Gemini API) ─────────────────────────────────
 
-def _call_ollama(messages: list[dict]) -> str:
-    payload = json.dumps({
-        "model": "llama3",
-        "messages": _text_only_messages(messages),
-        "stream": False,
-    }).encode()
-    req = urllib.request.Request(
-        f"{OLLAMA_BASE_URL}/api/chat",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read())["message"]["content"]
+def _call_google(model: str, messages: list[dict]) -> str:
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY not set")
+    import google.generativeai as genai
+    genai.configure(api_key=GEMINI_API_KEY)
+    system_content = next((m["content"] for m in messages if m["role"] == "system"), None)
+    contents = _build_gemini_contents(messages)
+    gmodel = genai.GenerativeModel(model, system_instruction=system_content)
+    return gmodel.generate_content(contents).text
 
+
+def _stream_google(model: str, messages: list[dict]) -> Generator[str, None, None]:
+    if not GEMINI_API_KEY:
+        raise ValueError("GEMINI_API_KEY not set")
+    import google.generativeai as genai
+    genai.configure(api_key=GEMINI_API_KEY)
+    system_content = next((m["content"] for m in messages if m["role"] == "system"), None)
+    contents = _build_gemini_contents(messages)
+    gmodel = genai.GenerativeModel(model, system_instruction=system_content)
+    for chunk in gmodel.generate_content(contents, stream=True):
+        token = chunk.text
+        if token:
+            yield token
+
+
+def _call_gemma(messages: list[dict]) -> str:
+    return _call_google(GEMMA_MODEL, messages)
+
+
+def _call_gemini(messages: list[dict]) -> str:
+    return _call_google(GEMINI_MODEL, messages)
+
+
+def _stream_gemma(messages: list[dict]) -> Generator[str, None, None]:
+    yield from _stream_google(GEMMA_MODEL, messages)
+
+
+def _stream_gemini(messages: list[dict]) -> Generator[str, None, None]:
+    yield from _stream_google(GEMINI_MODEL, messages)
+
+
+# ── Groq ──────────────────────────────────────────────────────────────────────
 
 def _call_groq(messages: list[dict]) -> str:
     if not GROQ_API_KEY:
@@ -84,44 +120,6 @@ def _call_groq(messages: list[dict]) -> str:
         messages=_text_only_messages(messages),
     )
     return resp.choices[0].message.content
-
-
-def _call_gemini(messages: list[dict]) -> str:
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY not set")
-    import google.generativeai as genai
-    genai.configure(api_key=GEMINI_API_KEY)
-
-    system_content = next((m["content"] for m in messages if m["role"] == "system"), None)
-    contents = _build_gemini_contents(messages)
-    model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=system_content)
-    return model.generate_content(contents).text
-
-
-# ── Streaming providers ───────────────────────────────────────────────────────
-
-def _stream_ollama(messages: list[dict]) -> Generator[str, None, None]:
-    payload = json.dumps({
-        "model": "llama3",
-        "messages": _text_only_messages(messages),
-        "stream": True,
-    }).encode()
-    req = urllib.request.Request(
-        f"{OLLAMA_BASE_URL}/api/chat",
-        data=payload,
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        for line in resp:
-            line = line.strip()
-            if not line:
-                continue
-            chunk = json.loads(line)
-            token = chunk.get("message", {}).get("content", "")
-            if token:
-                yield token
-            if chunk.get("done"):
-                break
 
 
 def _stream_groq(messages: list[dict]) -> Generator[str, None, None]:
@@ -140,42 +138,63 @@ def _stream_groq(messages: list[dict]) -> Generator[str, None, None]:
             yield token
 
 
-def _stream_gemini(messages: list[dict]) -> Generator[str, None, None]:
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY not set")
-    import google.generativeai as genai
-    genai.configure(api_key=GEMINI_API_KEY)
-    system_content = next((m["content"] for m in messages if m["role"] == "system"), None)
-    contents = _build_gemini_contents(messages)
-    model = genai.GenerativeModel("gemini-2.5-flash", system_instruction=system_content)    
-    for chunk in model.generate_content(contents, stream=True):
-        token = chunk.text
-        if token:
-            yield token
-
-
 # ── Routing tables ────────────────────────────────────────────────────────────
 
 _CHAIN: dict[Complexity, list] = {
-    Complexity.SIMPLE: [_call_ollama, _call_groq,   _call_gemini],
-    Complexity.MEDIUM: [_call_groq,   _call_gemini, _call_ollama],
-    Complexity.HEAVY:  [_call_gemini, _call_groq,   _call_ollama],
+    Complexity.SIMPLE: [_call_gemma,  _call_groq,   _call_gemini],
+    Complexity.MEDIUM: [_call_groq,   _call_gemini, _call_gemma],
+    Complexity.HEAVY:  [_call_gemini, _call_groq,   _call_gemma],
 }
 
 _STREAM_CHAIN: dict[Complexity, list] = {
-    Complexity.SIMPLE: [_stream_ollama, _stream_groq,   _stream_gemini],
-    Complexity.MEDIUM: [_stream_groq,   _stream_gemini, _stream_ollama],
-    Complexity.HEAVY:  [_stream_gemini, _stream_groq,   _stream_ollama],
+    Complexity.SIMPLE: [_stream_gemma,  _stream_groq,   _stream_gemini],
+    Complexity.MEDIUM: [_stream_groq,   _stream_gemini, _stream_gemma],
+    Complexity.HEAVY:  [_stream_gemini, _stream_groq,   _stream_gemma],
 }
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _record_metric(provider: str, complexity: Complexity, latency_ms: float, fallback: bool) -> None:
+    entry = {
+        "provider": provider,
+        "complexity": complexity.value,
+        "latency_ms": round(latency_ms, 1),
+        "fallback": fallback,
+        "ts": time.time(),
+    }
+    _METRICS.append(entry)
+    if len(_METRICS) > _METRICS_MAX:
+        del _METRICS[: len(_METRICS) - _METRICS_MAX]
+    logger.info(
+        "completion provider=%s complexity=%s latency_ms=%s fallback=%s",
+        provider, complexity.value, entry["latency_ms"], fallback,
+    )
+
+
+def get_metrics() -> dict:
+    cutoff = time.time() - 86400
+    recent = [m for m in _METRICS if m["ts"] >= cutoff]
+    by_provider: dict[str, int] = {}
+    for m in recent:
+        by_provider[m["provider"]] = by_provider.get(m["provider"], 0) + 1
+    return {
+        "total_24h": len(recent),
+        "by_provider": by_provider,
+        "recent": recent[-20:],
+        "models": {"gemma": GEMMA_MODEL, "gemini": GEMINI_MODEL},
+    }
+
+
 def get_completion(messages: list[dict], complexity: Complexity) -> str:
     errors: list[str] = []
-    for provider in _CHAIN[complexity]:
+    for i, provider in enumerate(_CHAIN[complexity]):
+        name = provider.__name__.replace("_call_", "")
+        t0 = time.time()
         try:
-            return provider(messages)
+            result = provider(messages)
+            _record_metric(name, complexity, (time.time() - t0) * 1000, fallback=i > 0)
+            return result
         except Exception as exc:
             errors.append(f"{provider.__name__}: {exc}")
     raise RuntimeError(
@@ -185,22 +204,22 @@ def get_completion(messages: list[dict], complexity: Complexity) -> str:
 
 
 def stream_completion(messages: list[dict], complexity: Complexity) -> Generator:
-    """Yields string tokens followed by a final dict {"provider": name}.
-    Tries each provider in chain; falls back if setup fails.
-    Raises RuntimeError only if all providers fail before yielding anything."""
+    """Yields string tokens followed by a final dict {"provider": name}."""
     errors: list[str] = []
-    for provider_fn in _STREAM_CHAIN[complexity]:
+    for i, provider_fn in enumerate(_STREAM_CHAIN[complexity]):
         provider_name = provider_fn.__name__.replace("_stream_", "")
+        t0 = time.time()
         try:
             gen = provider_fn(messages)
-            first = next(gen)   # fail-fast: raises if provider is down before first token
+            first = next(gen)
         except StopIteration:
+            _record_metric(provider_name, complexity, (time.time() - t0) * 1000, fallback=i > 0)
             yield {"provider": provider_name}
             return
         except Exception as exc:
             errors.append(f"{provider_fn.__name__}: {exc}")
             continue
-        # Provider is live — hand off the stream (mid-stream errors propagate to caller)
+        _record_metric(provider_name, complexity, (time.time() - t0) * 1000, fallback=i > 0)
         yield first
         yield from gen
         yield {"provider": provider_name}

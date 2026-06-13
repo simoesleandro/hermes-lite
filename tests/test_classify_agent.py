@@ -88,3 +88,12 @@ def test_default_conhecimento():
 
 def test_default_empty():
     assert classify_agent("") == "conhecimento"
+
+def test_ops_status():
+    assert classify_agent("status dos serviços") == "ops"
+
+def test_ops_cronos():
+    assert classify_agent("reiniciar o cronos") == "ops"
+
+def test_ops_hermes():
+    assert classify_agent("hermes online?") == "ops"

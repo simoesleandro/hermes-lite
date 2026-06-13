@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "hermes-lite": {
+      "command": "python",
+      "args": ["mcp_server.py"],
+      "cwd": "C:/Users/Leand/OneDrive/Desktop/hermes-lite",
+      "env": {
+        "GEMINI_API_KEY": "your_key_here",
+        "SENTINELA_DB_PATH": "../sentinela/data/sentinela_rj.db",
+        "SYSHEALTH_URL": "http://localhost:5060"
+      }
+    }
+  }
+}

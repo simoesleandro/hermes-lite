@@ -4,14 +4,14 @@
 ![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
 ![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-F55036?logo=groq&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-4285F4?logo=google&logoColor=white)
-![Ollama](https://img.shields.io/badge/Ollama-llama3-white?logo=ollama&logoColor=black)
-![Agents](https://img.shields.io/badge/Agentes-10-7c3aed)
+![Gemma](https://img.shields.io/badge/Gemma_4-E4B-4285F4?logo=google&logoColor=white)
+![Agents](https://img.shields.io/badge/Agentes-11-7c3aed)
 ![License](https://img.shields.io/badge/Licença-MIT-22c55e)
 ![Last Commit](https://img.shields.io/github/last-commit/simoesleandro/hermes-lite?color=8892b0)
 
 > Assistente multi-agente local com streaming, dados reais e automação autônoma.
 
-Hermes Lite é uma plataforma de IA pessoal com 10 agentes especializados, roteamento automático entre três providers de LLM com fallback, interface web estilo Gemini, scheduler autônomo com notificações Discord e monitor de sistema em tempo real.
+Hermes Lite é uma plataforma de IA pessoal com 11 agentes especializados, roteamento automático entre três providers de LLM com fallback, interface web estilo Gemini, scheduler autônomo com notificações Telegram/Discord e monitor de sistema em tempo real.
 
 ---
 
@@ -21,7 +21,7 @@ Hermes Lite é uma plataforma de IA pessoal com 10 agentes especializados, rotea
 |--------|--------------|-------------|
 | Conhecimento | Perguntas gerais, pesquisa e tecnologia | Groq |
 | Dev | Desenvolvimento de software e arquitetura | Groq |
-| Saúde | Saúde pessoal com dados reais do SysHealth API | Ollama |
+| Saúde | Saúde pessoal com dados reais do SysHealth API | Gemma 4 |
 | Treino | Performance e musculação com dados Hevy + Amazfit | Groq |
 | Produtividade | GTD, gestão de tarefas e foco | Groq |
 | Sentinela | Auditoria de contratos públicos do RJ (PNCP) | Groq |
@@ -29,6 +29,7 @@ Hermes Lite é uma plataforma de IA pessoal com 10 agentes especializados, rotea
 | Investigador | Dossiê autônomo multi-fonte com ReAct pattern | Gemini |
 | Leitor PDF | Análise e perguntas sobre documentos PDF | Gemini |
 | Analista | Geração e execução de código Python + gráficos inline | Gemini |
+| Ops | Controle de serviços Windows (Hermes, Cronos, Vigia) | Gemma 4 |
 
 ---
 
@@ -37,10 +38,12 @@ Hermes Lite é uma plataforma de IA pessoal com 10 agentes especializados, rotea
 ### Model Router — Fallback automático em 3 níveis
 
 ```
-SIMPLE  →  Ollama  →  Groq    →  Gemini
-MEDIUM  →  Groq    →  Gemini  →  Ollama
-HEAVY   →  Gemini  →  Groq    →  Ollama
+SIMPLE  →  Gemma 4  →  Groq    →  Gemini
+MEDIUM  →  Groq     →  Gemini  →  Gemma 4
+HEAVY   →  Gemini   →  Groq    →  Gemma 4
 ```
+
+Gemma 4 (`gemma-4-4b-it` por padrão) usa a **Gemini API** — mesma chave `GEMINI_API_KEY`, sem Ollama local.
 
 Se o provider principal estiver indisponível, o sistema tenta o próximo automaticamente, sem interrupção para o usuário.
 
@@ -49,7 +52,7 @@ Se o provider principal estiver indisponível, o sistema tenta o próximo automa
 - **Backend:** Python 3.13 + Flask
 - **Frontend:** HTML/CSS/JS vanilla (sem frameworks)
 - **Banco:** SQLite (`db/hermes.db`) para histórico de conversas
-- **LLMs:** Groq (`llama-3.3-70b-versatile`), Gemini 2.5 Flash, Ollama (`llama3`)
+- **LLMs:** Groq (`llama-3.3-70b-versatile`), Gemini 2.5 Flash, Gemma 4 via Gemini API
 - **Streaming:** SSE (Server-Sent Events) — tokens em tempo real
 - **Serviços externos:** SysHealth API (saúde), Sentinela RJ (contratos públicos)
 
@@ -57,9 +60,12 @@ Se o provider principal estiver indisponível, o sistema tenta o próximo automa
 
 ```
 hermes-lite/
-├── app.py                    # Flask app, rotas SSE e upload
+├── app.py                    # Entry point UI local
+├── app_factory.py            # Flask factory (rotas compartilhadas)
+├── api_server.py             # Entry point com CORS
+├── mcp_server.py             # MCP server (Cursor / Claude Desktop)
 ├── model_router.py           # Roteamento e fallback entre providers
-├── agents/                   # 10 agentes especializados
+├── agents/                   # 11 agentes especializados
 │   ├── base.py
 │   ├── conhecimento.py
 │   ├── desenvolvimento.py
@@ -70,7 +76,8 @@ hermes-lite/
 │   ├── juridico.py
 │   ├── investigador.py
 │   ├── leitor_pdf.py
-│   └── analista.py
+│   ├── analista.py
+│   └── ops.py
 ├── services/                 # Clientes de serviços externos
 │   ├── syshealth_client.py
 │   ├── sentinela_client.py
@@ -94,9 +101,12 @@ hermes-lite/
 
 ## Funcionalidades
 
+- **Registro SysHealth via chat** — agente Saúde persiste água, peso e tirzepatida
+- **Painel Sentinela** — alertas e stats na sidebar (agentes Sentinela/Jurídico)
+- **Busca e export** — FTS5 nas conversas + download Markdown
 - **Streaming real** — tokens chegam palavra a palavra via SSE
 - **Histórico por sessão** — `session_id` UUID isolado por aba do browser
-- **Badge de provider** — mostra qual LLM respondeu (groq/gemini/ollama)
+- **Badge de provider** — mostra qual LLM respondeu (gemma/groq/gemini)
 - **Comando `/limpar`** — reseta o contexto da conversa
 - **Upload de PDF** — botão 📎 no agente Leitor (até 10 MB, 100 páginas)
 - **Gráficos inline** — Analista gera e exibe PNGs diretamente no chat
@@ -107,13 +117,13 @@ hermes-lite/
 
 ## 🕐 Cronos — Scheduler Autônomo
 
-Serviço Windows que executa tarefas agendadas e envia notificações no Discord.
+Serviço Windows que executa tarefas agendadas e envia notificações via Telegram (padrão) ou Discord (`NOTIFY_CHANNEL=both`).
 
-| Tarefa | Horário | Canal Discord |
-|--------|---------|--------------|
-| ☀️ Briefing diário | 09:30 todos os dias | `#briefing` |
-| 📊 Resumo de saúde | 22:00 todos os dias | `#saude` |
-| 🔎 Relatório Sentinela | 09:30 segundas-feiras | `#sentinela` |
+| Tarefa | Horário | Canal |
+|--------|---------|-------|
+| ☀️ Briefing diário | 09:30 todos os dias | Telegram / Discord |
+| 📊 Resumo de saúde | 22:00 todos os dias | Telegram / Discord |
+| 🔎 Relatório Sentinela | 09:30 segundas-feiras | Telegram / Discord |
 
 **Executar manualmente:**
 ```bash
@@ -132,7 +142,7 @@ Monitora 4 serviços a cada 5 minutos e notifica no Discord quando algo cai ou v
 |---------|------------|
 | Hermes Lite | HTTP `localhost:5050` |
 | SysHealth API | HTTP `localhost:5060/health` |
-| Ollama | HTTP `localhost:11434/api/tags` |
+| Gemma 4 | Gemini API (`GEMMA_MODEL`) |
 | Hermes Cronos | Windows Service `HermesCronos` |
 
 Alertas por mudança de estado (sem spam repetido). Heartbeat a cada hora.
@@ -149,9 +159,8 @@ python -m vigia.vigia
 ### Pré-requisitos
 
 - Python 3.11+
-- [Ollama](https://ollama.com) instalado e rodando localmente
 - Conta no [Groq](https://console.groq.com) (gratuita)
-- Conta no [Google AI Studio](https://aistudio.google.com) para Gemini
+- Conta no [Google AI Studio](https://aistudio.google.com) para Gemini + Gemma 4
 
 ### Setup
 
@@ -171,9 +180,15 @@ Acesse: **http://localhost:5050**
 | Variável | Descrição |
 |----------|-----------|
 | `GROQ_API_KEY` | Chave da API Groq |
-| `GEMINI_API_KEY` | Chave da API Google Gemini |
-| `OLLAMA_BASE_URL` | URL do Ollama (padrão: `http://localhost:11434`) |
+| `GEMINI_API_KEY` | Chave da API Google (Gemini + Gemma 4) |
+| `GEMINI_MODEL` | Modelo Gemini para HEAVY (padrão: `gemini-2.5-flash`) |
+| `GEMMA_MODEL` | Modelo Gemma 4 para SIMPLE (padrão: `gemma-4-4b-it`) |
 | `SYSHEALTH_URL` | URL da API SysHealth (padrão: `http://localhost:5060`) |
+| `SYSHEALTH_DB_PATH` | Caminho SQLite do SysHealth (sandbox Analista) |
+| `SENTINELA_DB_PATH` | Caminho SQLite Sentinela RJ |
+| `NOTIFY_CHANNEL` | Canal Cronos: `telegram`, `discord` ou `both` |
+| `TELEGRAM_BOT_TOKEN` | Token do bot Telegram (Cronos) |
+| `TELEGRAM_CHAT_ID` | Chat ID destino (Cronos) |
 | `DISCORD_WEBHOOK_LOGS` | Webhook Discord para logs e alertas do Vigia |
 | `DISCORD_WEBHOOK_BRIEFING` | Webhook para briefing diário (Cronos) |
 | `DISCORD_WEBHOOK_SAUDE` | Webhook para resumo de saúde (Cronos) |

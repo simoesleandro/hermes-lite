@@ -558,7 +558,7 @@ body::before {
 .provider-badge { font-size: 0.58rem; font-weight: 600; padding: 0.08rem 0.32rem; border-radius: 4px; letter-spacing: 0.03em; text-transform: uppercase; }
 .provider-groq    { background: #f97316; color: #fff; }
 .provider-gemini  { background: #3b82f6; color: #fff; }
-.provider-ollama  { background: #10b981; color: #fff; }
+.provider-gemma   { background: #4285f4; color: #fff; }
 .provider-unknown { background: rgba(255,255,255,0.1); color: var(--muted); }
 
 /* ── System message ──────────────────────────────────── */
@@ -633,6 +633,76 @@ body::before {
 }
 
 .status-pill-latency { opacity: 0.65; font-size: 0.6rem; }
+
+/* ── Sidebar search ──────────────────────────────────── */
+.sidebar-search-wrap { padding: 0 12px 8px; }
+.conv-search {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 0.8rem;
+  outline: none;
+}
+.conv-search:focus { border-color: rgba(124, 58, 237, 0.5); }
+.conv-item-snippet {
+  display: block;
+  font-size: 0.65rem;
+  opacity: 0.55;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Sentinela panel ─────────────────────────────────── */
+.sentinela-panel {
+  margin: 0 12px 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.06);
+  font-size: 0.75rem;
+}
+.sentinela-panel-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #fca5a5;
+}
+.sentinela-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.sentinela-stat {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.65rem;
+}
+.sentinela-stat.sev-alta { color: #f87171; }
+.sentinela-stat.sev-media { color: #fbbf24; }
+.sentinela-alerts { list-style: none; padding: 0; margin: 0; }
+.sentinela-alerts li {
+  padding: 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sentinela-alerts li.sev-alta strong { color: #f87171; }
+.sentinela-offline, .sentinela-loading { opacity: 0.6; font-size: 0.7rem; }
+
+.export-conv-btn {
+  align-self: flex-end;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.export-conv-btn:hover { background: rgba(255, 255, 255, 0.1); }
 
 /* ── Mobile responsive sidebar ───────────────────────── */
 @media (max-width: 768px) {

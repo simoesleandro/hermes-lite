@@ -6,8 +6,12 @@ import subprocess
 import sys
 import tempfile
 
-SENTINELA_DB = r"C:\Users\Leand\OneDrive\Desktop\Sentinela\data\sentinela_rj.db"
-SYSHEALTH_DB = r"C:\Users\Leand\onedrive\desktop\projeto_fit\nutricao.db"
+from services.sentinela_client import SENTINELA_DB
+
+_DEFAULT_SYSHEALTH_DB = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "projeto_fit", "nutricao.db")
+)
+SYSHEALTH_DB = os.getenv("SYSHEALTH_DB_PATH", _DEFAULT_SYSHEALTH_DB)
 
 BLOCKED = [
     "subprocess", "os.system", "shutil",

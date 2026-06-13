@@ -43,7 +43,6 @@ def send_telegram(message: str) -> None:
     if not token or not chat_id:
         logger.warning("TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurados")
         return
-    print(f"[DEBUG] Sending to Telegram: {message[:200]}")
     payload = json.dumps({"chat_id": chat_id, "text": message}).encode()
     req = urllib.request.Request(
         f"https://api.telegram.org/bot{token}/sendMessage",
@@ -59,3 +58,21 @@ def send_telegram(message: str) -> None:
         logger.error("Telegram notification falhou: %s — %s", exc, body)
     except Exception as exc:
         logger.error("Telegram notification falhou: %s", exc)
+
+
+def notify(
+    message: str,
+    title: str = "Hermes Cronos",
+    color: int = 0x5865F2,
+    discord_webhook: str | None = None,
+) -> None:
+    """Envia notificação conforme NOTIFY_CHANNEL (telegram|discord|both)."""
+    channel = os.getenv("NOTIFY_CHANNEL", "telegram").lower()
+    if channel in ("telegram", "both"):
+        send_telegram(message)
+    if channel in ("discord", "both"):
+        webhook = discord_webhook or os.getenv("DISCORD_WEBHOOK_BRIEFING", "") or os.getenv("DISCORD_WEBHOOK_LOGS", "")
+        if webhook:
+            send_embed(webhook, title, message, color)
+        else:
+            logger.warning("Discord webhook não configurado para notify()")
