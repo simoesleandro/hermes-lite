@@ -87,7 +87,8 @@ def _run_investigacao_parecer(workflow_id: str, db_path: str | None = None) -> N
         wf = db.get_workflow(workflow_id)
         if not wf:
             return
-        inp = json.loads(wf.get("input_json") or "{}")
+        raw_inp = wf.get("input_json") or {}
+        inp = raw_inp if isinstance(raw_inp, dict) else json.loads(raw_inp or "{}")
         dossier = (inp.get("dossier") or "").strip()
         sources = inp.get("sources") or []
         alert = inp.get("alert")

@@ -12,10 +12,19 @@ load_dotenv()
 
 logger = logging.getLogger("hermes.model_router")
 
-GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL   = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-GEMMA_MODEL    = os.getenv("GEMMA_MODEL", "gemma-4-4b-it")
+GROQ_API_KEY      = os.getenv("GROQ_API_KEY", "")
+GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL      = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMMA_PROVIDER    = os.getenv("GEMMA_PROVIDER", "ollama").strip().lower()
+OLLAMA_BASE_URL   = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+OLLAMA_GEMMA_MODEL = os.getenv("OLLAMA_GEMMA_MODEL", "gemma4:12b")
+GEMMA_MODEL       = os.getenv("GEMMA_MODEL", "gemma-4-26b-a4b-it")
+
+
+def _gemma_model_label() -> str:
+    if GEMMA_PROVIDER == "ollama":
+        return OLLAMA_GEMMA_MODEL
+    return GEMMA_MODEL
 
 _METRICS: list[dict] = []
 _METRICS_MAX = 500
@@ -65,6 +74,70 @@ def _build_gemini_contents(messages: list[dict]) -> list[dict]:
     return contents
 
 
+# ── Ollama (Gemma 4 local) ───────────────────────────────────────────────────
+
+def _ollama_messages(messages: list[dict]) -> list[dict]:
+    out: list[dict] = []
+    for m in messages:
+        content = m["content"]
+        if isinstance(content, list):
+            texts = [p["text"] for p in content if p.get("type") == "text"]
+            if any(p.get("type") == "image" for p in content):
+                texts.append("[Nota: imagem anexada nao suportada pelo Gemma local]")
+            content = " ".join(texts)
+        out.append({"role": m["role"], "content": content})
+    return out
+
+
+def _ollama_post(path: str, payload: dict, timeout: float = 300) -> dict:
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        f"{OLLAMA_BASE_URL}{path}",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read())
+
+
+def _call_ollama(messages: list[dict]) -> str:
+    body = _ollama_post(
+        "/api/chat",
+        {
+            "model": OLLAMA_GEMMA_MODEL,
+            "messages": _ollama_messages(messages),
+            "stream": False,
+        },
+    )
+    return body["message"]["content"]
+
+
+def _stream_ollama(messages: list[dict]) -> Generator[str, None, None]:
+    data = json.dumps(
+        {
+            "model": OLLAMA_GEMMA_MODEL,
+            "messages": _ollama_messages(messages),
+            "stream": True,
+        }
+    ).encode()
+    req = urllib.request.Request(
+        f"{OLLAMA_BASE_URL}/api/chat",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=300) as resp:
+        for raw in resp:
+            line = raw.decode().strip()
+            if not line:
+                continue
+            chunk = json.loads(line)
+            token = chunk.get("message", {}).get("content")
+            if token:
+                yield token
+
+
 # ── Google (Gemini + Gemma 4 via Gemini API) ─────────────────────────────────
 
 def _call_google(model: str, messages: list[dict]) -> str:
@@ -93,6 +166,8 @@ def _stream_google(model: str, messages: list[dict]) -> Generator[str, None, Non
 
 
 def _call_gemma(messages: list[dict]) -> str:
+    if GEMMA_PROVIDER == "ollama":
+        return _call_ollama(messages)
     return _call_google(GEMMA_MODEL, messages)
 
 
@@ -101,6 +176,9 @@ def _call_gemini(messages: list[dict]) -> str:
 
 
 def _stream_gemma(messages: list[dict]) -> Generator[str, None, None]:
+    if GEMMA_PROVIDER == "ollama":
+        yield from _stream_ollama(messages)
+        return
     yield from _stream_google(GEMMA_MODEL, messages)
 
 
@@ -196,7 +274,11 @@ def get_metrics() -> dict:
         "by_complexity": by_complexity,
         "avg_latency_ms": avg_latency,
         "recent": recent[-20:],
-        "models": {"gemma": GEMMA_MODEL, "gemini": GEMINI_MODEL},
+        "models": {
+            "gemma": _gemma_model_label(),
+            "gemma_provider": GEMMA_PROVIDER,
+            "gemini": GEMINI_MODEL,
+        },
     }
 
 

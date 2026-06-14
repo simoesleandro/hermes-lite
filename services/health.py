@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import time
@@ -37,30 +38,130 @@ def check_gemini() -> dict:
         return {"status": "offline", "latency_ms": None}
 
 
-def check_gemma() -> dict:
-    model_id = os.getenv("GEMMA_MODEL", "gemma-4-4b-it")
+def _gemma_model_ids() -> set[str]:
+    """IDs Gemma disponíveis na Gemini API (com e sem prefixo models/)."""
     if not os.getenv("GEMINI_API_KEY", ""):
-        return {"status": "offline", "latency_ms": None, "model": model_id}
+        return set()
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
+        ids: set[str] = set()
+        for m in genai.list_models():
+            if "gemma" not in m.name.lower():
+                continue
+            ids.add(m.name)
+            ids.add(m.name.split("/")[-1])
+        return ids
+    except Exception:
+        return set()
+
+
+def _ollama_model_names() -> set[str]:
+    base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+    try:
+        req = urllib.request.Request(f"{base}/api/tags")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+        names: set[str] = set()
+        for m in data.get("models", []):
+            name = m.get("name", "")
+            if name:
+                names.add(name)
+                names.add(name.split(":")[0])
+        return names
+    except Exception:
+        return set()
+
+
+def check_gemma() -> dict:
+    provider = os.getenv("GEMMA_PROVIDER", "ollama").strip().lower()
+    if provider == "ollama":
+        model = os.getenv("OLLAMA_GEMMA_MODEL", "gemma4:12b").strip()
+        available = _ollama_model_names()
+        if not available:
+            return {
+                "status": "offline",
+                "latency_ms": None,
+                "model": model,
+                "provider": "ollama",
+                "error": "Ollama nao responde em OLLAMA_BASE_URL",
+            }
+        if model not in available and model.split(":")[0] not in available:
+            return {
+                "status": "offline",
+                "latency_ms": None,
+                "model": model,
+                "provider": "ollama",
+                "error": f"modelo nao instalado — rode: ollama pull {model}",
+            }
+        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+        try:
+            t = time.time()
+            req = urllib.request.Request(f"{base}/api/tags")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                resp.read()
+            return {
+                "status": "online",
+                "latency_ms": round((time.time() - t) * 1000),
+                "model": model,
+                "provider": "ollama",
+            }
+        except Exception as exc:
+            return {
+                "status": "offline",
+                "latency_ms": None,
+                "model": model,
+                "provider": "ollama",
+                "error": str(exc)[:120],
+            }
+
+    model_id = os.getenv("GEMMA_MODEL", "gemma-4-26b-a4b-it").strip()
+    bare = model_id.replace("models/", "")
+    if not os.getenv("GEMINI_API_KEY", ""):
+        return {"status": "offline", "latency_ms": None, "model": bare, "provider": "gemini"}
+
+    available = _gemma_model_ids()
+    if available and bare not in available and f"models/{bare}" not in available:
+        hint = "gemma-4-12b-it ainda nao esta na Gemini API; use gemma-4-26b-a4b-it"
+        if "12" in bare:
+            return {
+                "status": "offline",
+                "latency_ms": None,
+                "model": bare,
+                "error": hint,
+            }
+        return {
+            "status": "offline",
+            "latency_ms": None,
+            "model": bare,
+            "error": f"modelo nao listado na API: {bare}",
+        }
+
     try:
         import google.generativeai as genai
         genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
         t = time.time()
-        genai.GenerativeModel(model_id).generate_content("ping")
-        return {"status": "online", "latency_ms": round((time.time() - t) * 1000), "model": model_id}
-    except Exception:
-        return {"status": "offline", "latency_ms": None, "model": model_id}
+        # count_tokens e rapido (~300ms); generate_content estourava timeout de 6s
+        genai.GenerativeModel(bare).count_tokens("ping")
+        return {
+            "status": "online",
+            "latency_ms": round((time.time() - t) * 1000),
+            "model": bare,
+            "provider": "gemini",
+        }
+    except Exception as exc:
+        return {
+            "status": "offline",
+            "latency_ms": None,
+            "model": bare,
+            "provider": "gemini",
+            "error": str(exc)[:120],
+        }
 
 
 def check_syshealth() -> dict:
-    base = os.getenv("SYSHEALTH_URL", "http://localhost:5060").rstrip("/")
-    try:
-        req = urllib.request.Request(f"{base}/health")
-        t0 = time.monotonic()
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            resp.read()
-        return {"status": "online", "latency_ms": round((time.monotonic() - t0) * 1000)}
-    except Exception:
-        return {"status": "offline", "latency_ms": None}
+    from services.syshealth_client import check_syshealth_service
+    return check_syshealth_service()
 
 
 def check_sentinela() -> dict:
@@ -114,7 +215,7 @@ def get_health(include_providers: bool = True) -> dict:
         results: dict = {}
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = {executor.submit(fn): name for name, fn in checks.items()}
-            done, _ = futures_wait(futures, timeout=6)
+            done, _ = futures_wait(futures, timeout=15)
             for future in done:
                 name = futures[future]
                 try:

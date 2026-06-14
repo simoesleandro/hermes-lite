@@ -87,11 +87,8 @@ def _run_sc(action: str, service: str) -> dict:
 
 
 def _check_syshealth_http() -> str:
-    try:
-        urllib.request.urlopen("http://localhost:5060/api/resumo", timeout=2)
-        return "RUNNING"
-    except Exception:
-        return "STOPPED"
+    from services.syshealth_client import check_syshealth_service
+    return "RUNNING" if check_syshealth_service().get("status") == "online" else "STOPPED"
 
 
 def _query_all_status() -> list[dict]:

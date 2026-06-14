@@ -1,7 +1,7 @@
 <service>
   <id>HermesSysHealthAPI</id>
   <name>Hermes SysHealth API</name>
-  <description>SysHealth API server na porta 5060</description>
+  <description>LEGADO — Flask api_server.py Projeto_Fit na porta 5060. Com sys-health (Supabase), Hermes nao precisa deste servico.</description>
 
   <executable>C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe</executable>
   <arguments>C:\Users\Leand\onedrive\desktop\projeto_fit\api_server.py</arguments>

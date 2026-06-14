@@ -4,13 +4,13 @@ Plataforma pessoal multi-agente (Flask + SSE + SQLite).
 
 ## Entry points
 
-- `app.py` — UI local (porta 5050)
+- `app.py` — UI local (porta 5050; **dev atual: 5051** se serviço WinSW ocupa 5050)
 - `api_server.py` — mesmo app com CORS (`create_app(enable_cors=True)`)
 - `app_factory.py` — rotas compartilhadas; **editar aqui** ao adicionar endpoints
 
-## Agentes (11)
+## Agentes (12)
 
-`conhecimento`, `desenvolvimento`, `saude`, `treino`, `produtividade`, `sentinela`, `juridico`, `investigador`, `leitor`, `analista`, `ops`
+`conhecimento`, `desenvolvimento`, `saude`, `treino`, `produtividade`, `sentinela`, `juridico`, `investigador`, `leitor`, `analista`, `ops`, `radar`
 
 Roteamento automático: `classify_agent()` em `app_factory.py` (testes em `tests/test_classify_agent.py`).
 
@@ -20,11 +20,12 @@ Roteamento automático: `classify_agent()` em `app_factory.py` (testes em `tests
 
 | Tier | Primary | Fallback |
 |------|---------|----------|
-| SIMPLE | Gemma 4 (`GEMMA_MODEL`) | Groq → Gemini |
+| SIMPLE | Gemma 4 local (Ollama) | Groq → Gemini |
 | MEDIUM | Groq | Gemini → Gemma 4 |
 | HEAVY | Gemini Flash | Groq → Gemma 4 |
 
-Gemma 4 roda via **Gemini API** (mesma `GEMINI_API_KEY`), sem Ollama local.
+Gemma 4 roda **localmente via Ollama** (`gemma4:12b` por padrão) — custo zero, sem Gemini API.
+Para voltar à API paga: `GEMMA_PROVIDER=gemini`.
 
 ## MCP Server
 
@@ -37,9 +38,10 @@ Config de exemplo: `mcp-config.example.json` (15 tools: Sentinela, SysHealth, In
 
 ## Dados externos
 
-- SysHealth: `SYSHEALTH_URL` — leitura + POST (`/api/agua`, `/api/peso`, `/api/tirzepatida`) via `SysHealthClient`
-- Sentinela: `SENTINELA_DB_PATH` — SQLite read-only
-- Analista sandbox: `SENTINELA_DB_PATH`, `SYSHEALTH_DB_PATH`
+- SysHealth: **sys-health** (Next.js + Supabase) — leitura/escrita direta no banco via `SysHealthClient`
+  - `SYSHEALTH_BACKEND=supabase` (padrão) · web dev `:3535` · prod `sys-health.vercel.app`
+  - Legado: `SYSHEALTH_BACKEND=legacy` + Flask `Projeto_Fit/api_server.py` na `:5060`
+- Analista sandbox: `SENTINELA_DB_PATH`, `SYSHEALTH_DB_PATH` (só legado SQLite local)
 
 ## Cronos / Vigia
 
@@ -48,8 +50,10 @@ Config de exemplo: `mcp-config.example.json` (15 tools: Sentinela, SysHealth, In
 
 ## UI
 
-- Sidebar com histórico, busca FTS (`/api/conversations/search`), export MD
+- Sidebar: **Dashboard Home** (`/api/dashboard`), histórico, busca FTS, export MD
+- GitHub Inbox + Radar: `GITHUB_TOKEN` + `GITHUB_USER=simoesleandro` — **reiniciar Hermes após mudar `.env`**
 - Painel Sentinela visível nos agentes `sentinela` e `juridico`
+- Memória: `user_facts` (manual + `USER_FACTS_AUTO` com revisão pending na sidebar)
 
 ## Testes
 
