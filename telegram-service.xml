@@ -3,7 +3,7 @@
   <name>Hermes Telegram Bot</name>
   <description>Bot Telegram bidirecional do Hermes Lite (long polling).</description>
 
-  <executable>C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe</executable>
+  <executable>C:\Users\stife\AppData\Local\Programs\Python\Python312\python.exe</executable>
   <arguments>-m services.telegram_bot</arguments>
   <workingdirectory>%BASE%</workingdirectory>
 

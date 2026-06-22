@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from dotenv import load_dotenv
 from services.sentinela_client import SentinelaClient
 from cronos.notifier import notify
 
@@ -15,6 +16,7 @@ def _brl(v) -> str:
 
 
 def run() -> None:
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".env"))
     client = SentinelaClient()
     hoje = datetime.now(_TZ).strftime("%d/%m/%Y")
 

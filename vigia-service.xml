@@ -3,7 +3,7 @@
   <name>Hermes Vigia</name>
   <description>Monitor de sistema do Hermes Lite — notifica no Discord quando serviços caem ou voltam.</description>
 
-  <executable>C:\Users\Leand\AppData\Local\Programs\Python\Python313\python.exe</executable>
+  <executable>C:\Users\stife\AppData\Local\Programs\Python\Python312\python.exe</executable>
   <arguments>-m vigia.vigia</arguments>
   <workingdirectory>C:\Users\Leand\onedrive\desktop\hermes-lite</workingdirectory>
 

@@ -1,6 +1,9 @@
 import os
 import sqlite3
 
+from dotenv import load_dotenv
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env"))
+
 _DEFAULT_DB = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "sentinela", "data", "sentinela_rj.db")
 )
