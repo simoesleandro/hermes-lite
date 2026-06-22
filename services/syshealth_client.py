@@ -48,13 +48,11 @@ def _rest_url() -> str:
 
 
 def _brt_day_bounds() -> tuple[str, str]:
+    # PostgREST não reconhece sufixo Z em filtros — usa date-only (YYYY-MM-DD).
+    # Funciona tanto para registros antigos (00:00 UTC) quanto novos (03:00+00:00).
     today = datetime.now(_TZ).date()
-    start_local = datetime.combine(today, datetime.min.time(), tzinfo=_TZ)
-    end_local = start_local + timedelta(days=1)
-    start_utc = start_local.astimezone(ZoneInfo("UTC"))
-    end_utc = end_local.astimezone(ZoneInfo("UTC"))
-    fmt = lambda dt: dt.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
-    return fmt(start_utc), fmt(end_utc)
+    tomorrow = today + timedelta(days=1)
+    return today.isoformat(), tomorrow.isoformat()
 
 
 class _LegacyHttpBackend:
