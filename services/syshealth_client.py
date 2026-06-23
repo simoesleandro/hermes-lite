@@ -7,7 +7,7 @@ import os
 import re
 import urllib.parse
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 _TZ = ZoneInfo("America/Sao_Paulo")
@@ -53,6 +53,22 @@ def _brt_day_bounds() -> tuple[str, str]:
     today = datetime.now(_TZ).date()
     tomorrow = today + timedelta(days=1)
     return today.isoformat(), tomorrow.isoformat()
+
+
+def _brt_day_bounds_agua() -> tuple[str, str]:
+    # Água: dia começa às 06:00 BRT — registros de madrugada não contam como hoje.
+    # amazfit_dados usa 03:00 UTC (= 00:00 BRT), por isso só água usa este critério.
+    # PostgREST rejeita sufixo Z; converte para UTC e formata com +00:00.
+    now = datetime.now(_TZ)
+    day_start = now.replace(hour=6, minute=0, second=0, microsecond=0)
+    if now < day_start:
+        day_start -= timedelta(days=1)
+    day_end = day_start + timedelta(days=1)
+    fmt = "%Y-%m-%dT%H:%M:%S+00:00"
+    return (
+        day_start.astimezone(timezone.utc).strftime(fmt),
+        day_end.astimezone(timezone.utc).strftime(fmt),
+    )
 
 
 class _LegacyHttpBackend:
@@ -246,12 +262,13 @@ class _SupabaseBackend:
         result["tirzepatida_hoje"] = False
 
         start, end = _brt_day_bounds()
+        agua_start, agua_end = _brt_day_bounds_agua()
 
         try:
             agua_rows = self._query(
                 "agua",
                 select="quantidade_ml",
-                filters=[("and", f"(data_hora.gte.{start},data_hora.lt.{end})")],
+                filters=[("and", f"(data_hora.gte.{agua_start},data_hora.lt.{agua_end})")],
             )
             result["agua_hoje_ml"] = sum(int(r.get("quantidade_ml") or 0) for r in agua_rows)
         except Exception:
