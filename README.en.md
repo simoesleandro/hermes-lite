@@ -4,14 +4,13 @@
 ![Flask](https://img.shields.io/badge/Flask-3.x-000000?logo=flask&logoColor=white)
 ![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-F55036?logo=groq&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-2.5_Flash-4285F4?logo=google&logoColor=white)
-![Ollama](https://img.shields.io/badge/Ollama-llama3-white?logo=ollama&logoColor=black)
-![Agents](https://img.shields.io/badge/Agents-10-7c3aed)
-![License](https://img.shields.io/badge/License-MIT-22c55e)
+![Ollama](https://img.shields.io/badge/Ollama-Gemma4_12B-white?logo=ollama&logoColor=black)
+![Agents](https://img.shields.io/badge/Agents-12-7c3aed)
 ![Last Commit](https://img.shields.io/github/last-commit/simoesleandro/hermes-lite?color=8892b0)
 
 > A local multi-agent AI assistant with real-time streaming, live data integration, and autonomous automation.
 
-Hermes Lite is a personal AI platform featuring 10 specialized agents, automatic LLM routing with three-provider fallback, a Gemini-style web interface, an autonomous task scheduler with Discord notifications, and a real-time system monitor.
+Hermes Lite is a personal AI platform featuring 12 specialized agents, automatic LLM routing with three-provider fallback, a Gemini-style web interface, an autonomous task scheduler, Telegram/Discord notifications, MCP tools, and a real-time system monitor.
 
 ---
 
@@ -29,6 +28,8 @@ Hermes Lite is a personal AI platform featuring 10 specialized agents, automatic
 | Investigator | Autonomous multi-source dossier with ReAct pattern | Gemini |
 | PDF Reader | Document analysis and Q&A over uploaded PDFs | Gemini |
 | Analyst | Python code generation, execution, and inline charts | Gemini |
+| Ops | Windows service operations and health checks | Ollama |
+| Radar | GitHub open-source curation and daily digests | Groq |
 
 ---
 
@@ -37,19 +38,19 @@ Hermes Lite is a personal AI platform featuring 10 specialized agents, automatic
 ### Model Router — Automatic 3-level fallback
 
 ```
-SIMPLE  →  Ollama  →  Groq    →  Gemini
-MEDIUM  →  Groq    →  Gemini  →  Ollama
-HEAVY   →  Gemini  →  Groq    →  Ollama
+SIMPLE  →  Gemma 4 12B (Ollama)  →  Groq    →  Gemini
+MEDIUM  →  Groq                  →  Gemini  →  Gemma 4
+HEAVY   →  Gemini                →  Groq    →  Gemma 4
 ```
 
 If the primary provider is unavailable, the system falls back to the next one automatically — no interruption for the user.
 
 ### Stack
 
-- **Backend:** Python 3.13 + Flask
+- **Backend:** Python 3.11+ + Flask
 - **Frontend:** Vanilla HTML/CSS/JS (no frameworks)
 - **Database:** SQLite (`db/hermes.db`) for conversation history
-- **LLMs:** Groq (`llama-3.3-70b-versatile`), Gemini 2.5 Flash, Ollama (`llama3`)
+- **LLMs:** Groq (`llama-3.3-70b-versatile`), Gemini 2.5 Flash, Ollama (`gemma4:12b`)
 - **Streaming:** SSE (Server-Sent Events) — real-time token delivery
 - **External services:** SysHealth API (health data), Sentinela RJ (public contracts)
 
@@ -57,9 +58,11 @@ If the primary provider is unavailable, the system falls back to the next one au
 
 ```
 hermes-lite/
-├── app.py                    # Flask app, SSE routes, PDF upload
+├── app.py                    # Flask UI entry point
+├── app_factory.py            # Flask factory and routes
+├── mcp_server.py             # MCP server with 30+ tools
 ├── model_router.py           # LLM routing and fallback logic
-├── agents/                   # 10 specialized agents
+├── agents/                   # 12 specialized agents
 │   ├── base.py
 │   ├── conhecimento.py
 │   ├── desenvolvimento.py
@@ -86,6 +89,7 @@ hermes-lite/
 │   └── monitor.py
 ├── db/                       # Conversation history
 ├── static/                   # Frontend (HTML/CSS/JS)
+├── hermes-lite-service.xml    # WinSW — main Flask service
 ├── cronos-service.xml        # WinSW — Cronos service
 └── vigia-service.xml         # WinSW — Vigia service
 ```
@@ -102,6 +106,8 @@ hermes-lite/
 - **Inline charts** — Analyst agent generates and displays PNGs directly in chat
 - **Progress steps** — Investigator and Analyst stream step-by-step status in real time
 - **ReAct pattern** — Investigator executes real tools (CNPJ lookup, contracts DB, web search)
+- **MCP server** — 30+ tools for Cursor and Claude Desktop
+- **GitHub Radar / Inbox** — daily open-source curation and PR/issue digests
 
 ---
 
@@ -173,7 +179,9 @@ Open: **http://localhost:5050**
 | `GROQ_API_KEY` | Groq API key |
 | `GEMINI_API_KEY` | Google Gemini API key |
 | `OLLAMA_BASE_URL` | Ollama base URL (default: `http://localhost:11434`) |
-| `SYSHEALTH_URL` | SysHealth API URL (default: `http://localhost:5060`) |
+| `OLLAMA_GEMMA_MODEL` | Local Ollama model (default: `gemma4:12b`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL for sys-health |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
 | `DISCORD_WEBHOOK_LOGS` | Discord webhook for logs and Vigia alerts |
 | `DISCORD_WEBHOOK_BRIEFING` | Webhook for daily briefing (Cronos) |
 | `DISCORD_WEBHOOK_SAUDE` | Webhook for health summary (Cronos) |
@@ -183,23 +191,38 @@ Open: **http://localhost:5050**
 
 ## Windows Services (WinSW)
 
-To run Cronos and Vigia as background Windows services:
+To run Hermes Lite, Cronos and Vigia as background Windows services:
 
 1. Download [WinSW](https://github.com/winsw/winsw/releases) and place the `.exe` at the project root
 2. Rename it to match the service
 3. Run as Administrator:
 
 ```cmd
+# Hermes Lite
+copy WinSW-x64.exe hermes-lite-service.exe
+hermes-lite-service.exe install
+hermes-lite-service.exe start
+
 # Cronos
-rename WinSW-x64.exe cronos-service.exe
+copy WinSW-x64.exe cronos-service.exe
 cronos-service.exe install
 cronos-service.exe start
 
 # Vigia
-rename WinSW-x64.exe hermes-vigia.exe
-hermes-vigia.exe install
-hermes-vigia.exe start
+copy WinSW-x64.exe vigia-service.exe
+vigia-service.exe install
+vigia-service.exe start
 ```
+
+---
+
+## Tests
+
+```bash
+python -m pytest -q
+```
+
+Current validation: **136 passed**.
 
 ---
 

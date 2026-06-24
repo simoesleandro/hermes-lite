@@ -420,13 +420,13 @@ python services/telegram_bot.py
 pytest tests/
 ```
 
-136+ testes cobrem roteamento, facts, dashboard, webhooks, SysHealth, backup, etc.
+136 testes cobrem roteamento, facts, dashboard, webhooks, SysHealth, backup, etc.
 
 ### Serviços Windows (WinSW)
 
 | Serviço | XML | Função |
 |---------|-----|--------|
-| HermesLite | `hermes-service.xml` | UI/API Flask |
+| HermesLite | `hermes-lite-service.xml` | UI/API Flask |
 | HermesCronos | `cronos-service.xml` | Scheduler |
 | hermes-vigia | `vigia-service.xml` | Monitor |
 | HermesSysHealthAPI | `syshealth-api-service.xml` | **Legado** — só se usar Flask :5060 |

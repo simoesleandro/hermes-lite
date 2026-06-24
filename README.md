@@ -17,7 +17,6 @@
 [![Gemini](https://img.shields.io/badge/Gemini-2.5--Flash-4285F4?style=flat-square&logo=google)](https://aistudio.google.com)
 [![Gemma](https://img.shields.io/badge/Gemma4-12B--local-8b5cf6?style=flat-square)](https://ollama.ai)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com)
-[![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)
 [![Last Commit](https://img.shields.io/github/last-commit/simoesleandro/hermes-lite?style=flat-square&color=8b5cf6)](https://github.com/simoesleandro/hermes-lite/commits)
 [![Issues](https://img.shields.io/github/issues/simoesleandro/hermes-lite?style=flat-square&color=f59e0b)](https://github.com/simoesleandro/hermes-lite/issues)
 
@@ -136,7 +135,7 @@ HEAVY   →  Gemini 2.5 Flash            →  Groq          →  Gemma 4
 - ✅ **Export Markdown** — download de qualquer conversa
 - ✅ **Gráficos inline** — agente Analista gera e exibe PNGs no chat
 - ✅ **Backup automático** — Cronos faz zip do banco às 03:00 (retenção 14 dias)
-- ✅ **136+ testes** — cobertura de agentes, roteamento, facts, dashboard e webhooks
+- ✅ **136 testes** — cobertura de agentes, roteamento, facts, dashboard e webhooks
 
 ---
 
@@ -215,7 +214,7 @@ python -m vigia.vigia
 | Saúde | Supabase PostgreSQL (sys-health) |
 | IDE | MCP server stdio — Cursor / Claude Desktop |
 | Automação | Cronos (APScheduler) · Vigia (monitor) |
-| Testes | pytest — 136+ testes |
+| Testes | pytest — 136 testes |
 
 ---
 
@@ -276,7 +275,7 @@ python app.py
 
 | Serviço | XML | Porta |
 |---------|-----|-------|
-| HermesLite | `hermes-service.xml` | 5050 |
+| HermesLite | `hermes-lite-service.xml` | 5050 |
 | HermesCronos | `cronos-service.xml` | — |
 | hermes-vigia | `vigia-service.xml` | — |
 
@@ -297,7 +296,7 @@ hermes-lite/
 ├── cronos/                # Scheduler + tasks/
 ├── vigia/                 # Monitor de sistema
 ├── static/                # UI web (HTML/CSS/JS)
-├── tests/                 # 136+ testes pytest
+├── tests/                 # 136 testes pytest
 ├── exports/               # Pareceres, radar MD
 └── backups/               # Backups noturnos automáticos
 ```
@@ -331,7 +330,7 @@ pytest --cov=agents --cov-report=term-missing
 pytest tests/test_classify_agent.py -v
 ```
 
-> **136+ testes** cobrindo roteamento, facts, dashboard, webhooks, sys-health, backup e workflows.
+> **136 testes** cobrindo roteamento, facts, dashboard, webhooks, sys-health, backup e workflows.
 
 ---
 
