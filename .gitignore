@@ -12,3 +12,6 @@ backups/
 
 vigia-service.err.log
 vigia-service.wrapper.log
+
+# Binários locais (WinSW e wrappers de serviço)
+*.exe
